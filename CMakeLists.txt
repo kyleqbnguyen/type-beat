@@ -18,6 +18,7 @@ find_package(Qt6 REQUIRED COMPONENTS Widgets)
 
 add_executable(
   ${PROJECT_NAME}
+  src/core/file_validator.cpp
   src/main.cpp)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::Widgets)
