@@ -1,14 +1,12 @@
-#ifndef FILE_VALIDATOR_H
-#define FILE_VALIDATOR_H
+#pragma once
 
+#include <cstdint>
 #include <filesystem>
 
-enum class FileCategory { Audio, Video, Image };
+enum class FileCategory : std::int8_t { Audio, Video, Image };
 
 namespace FileValidator {
 
 bool isValid(const std::filesystem::path &path, FileCategory category);
 
-} // namespace FileValidator 
-
-#endif // FILE_VALIDATOR_H
+} // namespace FileValidator

@@ -19,7 +19,7 @@ const std::array<std::unordered_set<std::string>, categoryCount> validExts = {{
 } // anonymous namespace
 
 bool FileValidator::isValid(const std::filesystem::path &path,
-                             FileCategory category) {
+                            FileCategory category) {
   if (!std::filesystem::exists(path)) {
     return false;
   }
@@ -31,5 +31,5 @@ bool FileValidator::isValid(const std::filesystem::path &path,
 
   std::string ext{path.extension()};
 
-  return validExts[index].count(ext);
+  return validExts.at(index).contains(ext);
 }
