@@ -1,9 +1,8 @@
 #pragma once
 
-#include <cstdint>
-#include <filesystem>
+#include "config.h"
 
-enum class FileCategory : std::int8_t { Audio, Video, Image };
+#include <filesystem>
 
 namespace FileValidator {
 
