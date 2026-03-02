@@ -1,4 +1,5 @@
 #include "file_validator.h"
+#include "render_config.h"
 
 #include <array>
 #include <cstddef>

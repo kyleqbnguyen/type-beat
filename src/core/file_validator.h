@@ -1,6 +1,6 @@
 #pragma once
 
-#include "config.h"
+#include "render_config.h"
 
 #include <filesystem>
 
