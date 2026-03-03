@@ -1,11 +1,9 @@
 #pragma once
 
-#include "render_config.h"
-
-#include <filesystem>
+#include "core.h"
 
 namespace FileValidator {
 
-bool isValid(const std::filesystem::path &path, FileCategory category);
+bool isValid(const core::FileInfo &fileInfo);
 
 } // namespace FileValidator

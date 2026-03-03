@@ -1,5 +1,6 @@
 #include "file_validator.h"
-#include "render_config.h"
+
+#include "core.h"
 
 #include <array>
 #include <cstddef>
@@ -19,18 +20,17 @@ const std::array<std::unordered_set<std::string>, categoryCount> validExts = {{
 
 } // anonymous namespace
 
-bool FileValidator::isValid(const std::filesystem::path &path,
-                            FileCategory category) {
-  if (!std::filesystem::exists(path)) {
+bool FileValidator::isValid(const core::FileInfo &fileInfo) {
+  if (!std::filesystem::exists(fileInfo.path)) {
     return false;
   }
 
-  auto index = static_cast<std::size_t>(category);
+  auto index = static_cast<std::size_t>(fileInfo.category);
   if (index >= categoryCount) {
     return false;
   }
 
-  std::string ext{path.extension()};
+  std::string ext{fileInfo.path.extension()};
 
   return validExts.at(index).contains(ext);
 }

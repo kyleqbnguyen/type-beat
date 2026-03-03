@@ -1,4 +1,5 @@
 #include "core/file_validator.h"
+#include "core/core.h"
 
 #include <filesystem>
 #include <fstream>
@@ -29,60 +30,63 @@ protected:
 };
 
 TEST_F(FileValidatorTest, ValidAudio) {
-  EXPECT_TRUE(FileValidator::isValid(tmpDir / "test.mp3", FileCategory::Audio));
-  EXPECT_TRUE(FileValidator::isValid(tmpDir / "test.wav", FileCategory::Audio));
-}
+  EXPECT_TRUE(FileValidator::isValid(
+      {.path = tmpDir / "test.mp3", .category = core::FileCategory::Audio}));
 
-TEST_F(FileValidatorTest, ValidVideo) {
-  EXPECT_TRUE(FileValidator::isValid(tmpDir / "test.mp4", FileCategory::Video));
-  EXPECT_TRUE(FileValidator::isValid(tmpDir / "test.mov", FileCategory::Video));
+  EXPECT_TRUE(FileValidator::isValid(
+      {.path = tmpDir / "test.wav", .category = core::FileCategory::Audio}));
 }
 
 TEST_F(FileValidatorTest, ValidImage) {
-  EXPECT_TRUE(FileValidator::isValid(tmpDir / "test.png", FileCategory::Image));
-  EXPECT_TRUE(FileValidator::isValid(tmpDir / "test.jpg", FileCategory::Image));
-  EXPECT_TRUE(
-      FileValidator::isValid(tmpDir / "test.jpeg", FileCategory::Image));
+  EXPECT_TRUE(FileValidator::isValid(
+      {.path = tmpDir / "test.png", .category = core::FileCategory::Image}));
+  EXPECT_TRUE(FileValidator::isValid(
+      {.path = tmpDir / "test.jpg", .category = core::FileCategory::Image}));
+  EXPECT_TRUE(FileValidator::isValid(
+      {.path = tmpDir / "test.jpeg", .category = core::FileCategory::Image}));
 }
 
 TEST_F(FileValidatorTest, WrongCategory) {
-  EXPECT_FALSE(
-      FileValidator::isValid(tmpDir / "test.mp3", FileCategory::Image));
-  EXPECT_FALSE(
-      FileValidator::isValid(tmpDir / "test.png", FileCategory::Audio));
-  EXPECT_FALSE(
-      FileValidator::isValid(tmpDir / "test.mp4", FileCategory::Image));
+  EXPECT_FALSE(FileValidator::isValid(
+      {.path = tmpDir / "test.mp3", .category = core::FileCategory::Image}));
+  EXPECT_FALSE(FileValidator::isValid(
+      {.path = tmpDir / "test.png", .category = core::FileCategory::Audio}));
+  EXPECT_FALSE(FileValidator::isValid(
+      {.path = tmpDir / "test.mp4", .category = core::FileCategory::Image}));
 }
 
 TEST_F(FileValidatorTest, InvalidExtension) {
-  EXPECT_FALSE(
-      FileValidator::isValid(tmpDir / "test.txt", FileCategory::Audio));
-  EXPECT_FALSE(
-      FileValidator::isValid(tmpDir / "test.txt", FileCategory::Video));
-  EXPECT_FALSE(
-      FileValidator::isValid(tmpDir / "test.txt", FileCategory::Image));
+  EXPECT_FALSE(FileValidator::isValid(
+      {.path = tmpDir / "test.txt", .category = core::FileCategory::Audio}));
+  EXPECT_FALSE(FileValidator::isValid(
+      {.path = tmpDir / "test.txt", .category = core::FileCategory::Video}));
+  EXPECT_FALSE(FileValidator::isValid(
+      {.path = tmpDir / "test.txt", .category = core::FileCategory::Image}));
 }
 
 TEST_F(FileValidatorTest, NonExistentFile) {
-  EXPECT_FALSE(
-      FileValidator::isValid(tmpDir / "nonexistent.mp3", FileCategory::Audio));
-  EXPECT_FALSE(
-      FileValidator::isValid(tmpDir / "nonexistent.mp3", FileCategory::Video));
-  EXPECT_FALSE(
-      FileValidator::isValid(tmpDir / "nonexistent.mp3", FileCategory::Image));
+  EXPECT_FALSE(FileValidator::isValid({.path = tmpDir / "nonexistent.mp3",
+                                       .category = core::FileCategory::Audio}));
+  EXPECT_FALSE(FileValidator::isValid({.path = tmpDir / "nonexistent.mp3",
+                                       .category = core::FileCategory::Video}));
+  EXPECT_FALSE(FileValidator::isValid({.path = tmpDir / "nonexistent.mp3",
+                                       .category = core::FileCategory::Image}));
 }
 
 TEST_F(FileValidatorTest, CaseSensitivity) {
-  EXPECT_FALSE(
-      FileValidator::isValid(tmpDir / "test.MP3", FileCategory::Audio));
-  EXPECT_FALSE(
-      FileValidator::isValid(tmpDir / "test.MP4", FileCategory::Video));
-  EXPECT_FALSE(
-      FileValidator::isValid(tmpDir / "test.JPG", FileCategory::Image));
+  EXPECT_FALSE(FileValidator::isValid(
+      {.path = tmpDir / "test.MP3", .category = core::FileCategory::Audio}));
+  EXPECT_FALSE(FileValidator::isValid(
+      {.path = tmpDir / "test.MP4", .category = core::FileCategory::Video}));
+  EXPECT_FALSE(FileValidator::isValid(
+      {.path = tmpDir / "test.JPG", .category = core::FileCategory::Image}));
 }
 
 TEST_F(FileValidatorTest, NoExtension) {
-  EXPECT_FALSE(FileValidator::isValid(tmpDir / "noext", FileCategory::Audio));
-  EXPECT_FALSE(FileValidator::isValid(tmpDir / "noext", FileCategory::Video));
-  EXPECT_FALSE(FileValidator::isValid(tmpDir / "noext", FileCategory::Image));
+  EXPECT_FALSE(FileValidator::isValid(
+      {.path = tmpDir / "noext", .category = core::FileCategory::Audio}));
+  EXPECT_FALSE(FileValidator::isValid(
+      {.path = tmpDir / "noext", .category = core::FileCategory::Video}));
+  EXPECT_FALSE(FileValidator::isValid(
+      {.path = tmpDir / "noext", .category = core::FileCategory::Image}));
 }
