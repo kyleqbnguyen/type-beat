@@ -1,9 +1,9 @@
 #pragma once
 
-#include "core.h"
+#include "file_info.h"
 
-namespace FileValidator {
+namespace core::file {
 
-bool isValid(const core::FileInfo &fileInfo);
+bool isValid(const core::file::Info &fileInfo);
 
-} // namespace FileValidator
+} // namespace core::file

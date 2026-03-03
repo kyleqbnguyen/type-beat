@@ -1,6 +1,6 @@
 #include "file_validator.h"
 
-#include "core.h"
+#include "file_info.h"
 
 #include <array>
 #include <cstddef>
@@ -20,7 +20,7 @@ const std::array<std::unordered_set<std::string>, categoryCount> validExts = {{
 
 } // anonymous namespace
 
-bool FileValidator::isValid(const core::FileInfo &fileInfo) {
+bool core::file::isValid(const core::file::Info &fileInfo) {
   if (!std::filesystem::exists(fileInfo.path)) {
     return false;
   }
