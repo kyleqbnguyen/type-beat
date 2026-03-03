@@ -18,7 +18,7 @@ const std::array<std::unordered_set<std::string>, categoryCount> validExts = {{
 
 } // anonymous namespace
 
-bool core::file::isValid(const core::file::Info &fileInfo) {
+bool core::file::isValid(const core::file::FileInfo &fileInfo) {
   if (!std::filesystem::exists(fileInfo.path)) {
     return false;
   }
