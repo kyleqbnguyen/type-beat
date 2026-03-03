@@ -14,13 +14,21 @@ set(CMAKE_AUTOUIC ON)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic -Wshadow -Wconversion -Werror)
+endif()
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+  add_compile_options(/W4 /WX /permissive-)
+endif()
+
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets)
 
 add_library(core OBJECT src/core/file_utils.cpp)
 target_include_directories(core PUBLIC ${CMAKE_SOURCE_DIR}/src)
 
 add_executable(${PROJECT_NAME} src/main.cpp)
-target_link_libraries(${PROJECT_NAME} PRIVATE core Qt6::Widgets)
+target_link_libraries(${PROJECT_NAME} PRIVATE core Qt6::Widgets Qt6::Core)
 
 # Testing
 include(FetchContent)
