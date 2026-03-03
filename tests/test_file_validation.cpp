@@ -1,5 +1,4 @@
-#include "core/file_validator.h"
-#include "core/file_info.h"
+#include "core/file_utils.h"
 
 #include <filesystem>
 #include <fstream>
@@ -13,7 +12,7 @@ protected:
   std::filesystem::path tmpDir;
 
   void SetUp() override {
-    tmpDir = std::filesystem::temp_directory_path() / "file_validator_test";
+    tmpDir = std::filesystem::temp_directory_path() / "file_validation_test";
     std::filesystem::create_directories(tmpDir);
 
     const std::vector<std::string> testFiles = {

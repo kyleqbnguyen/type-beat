@@ -16,7 +16,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 
-add_library(core OBJECT src/core/file_validator.cpp)
+add_library(core OBJECT src/core/file_utils.cpp)
 target_include_directories(core PUBLIC ${CMAKE_SOURCE_DIR}/src)
 
 add_executable(${PROJECT_NAME} src/main.cpp)
@@ -32,7 +32,7 @@ FetchContent_MakeAvailable(googletest)
 
 enable_testing()
 
-add_executable(tests tests/test_file_validator.cpp)
+add_executable(tests tests/test_file_validation.cpp)
 target_link_libraries(tests PRIVATE core GTest::gtest_main)
 
 include(GoogleTest)

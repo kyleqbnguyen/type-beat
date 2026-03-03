@@ -12,4 +12,7 @@ struct Info {
   Category category;
 };
 
+bool isValid(const core::file::Info &fileInfo);
+
 } // namespace core::file
+
