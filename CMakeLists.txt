@@ -24,12 +24,22 @@ endif()
 
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets)
 
-add_library(core OBJECT src/core/file_utils.cpp src/core/ffprobe.cpp)
+add_library(core OBJECT src/core/file_utils.cpp src/core/ffprobe.cpp
+                        src/core/ffmpeg.cpp)
 target_include_directories(core PUBLIC ${CMAKE_SOURCE_DIR}/src)
-target_link_libraries(core PRIVATE Qt6::Core)
+target_link_libraries(core PUBLIC Qt6::Core)
+
+add_library(settings OBJECT src/settings/app_settings.cpp)
+target_include_directories(settings PUBLIC ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(settings PUBLIC Qt6::Core)
+
+add_library(ui OBJECT src/ui/file_input.cpp src/ui/main_window.cpp)
+target_include_directories(ui PUBLIC ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(ui PUBLIC Qt6::Widgets Qt6::Core core settings)
 
 add_executable(${PROJECT_NAME} src/main.cpp)
-target_link_libraries(${PROJECT_NAME} PRIVATE core Qt6::Widgets Qt6::Core)
+target_link_libraries(${PROJECT_NAME} PRIVATE ui core settings Qt6::Widgets
+                                              Qt6::Core)
 
 # Testing
 include(FetchContent)
