@@ -8,10 +8,16 @@ namespace ui {
 
 FileInput::FileInput(const QString &filter, Mode mode, QWidget *parent)
     : QWidget{parent}, lineEdit_{new QLineEdit(this)},
-      browseButton_{new QPushButton(tr("Browse..."), this)}, filter_{filter},
+      browseButton_{new QPushButton(tr("Browse"), this)}, filter_{filter},
       mode_{mode} {
   auto *layout = new QHBoxLayout(this);
   layout->setContentsMargins(0, 0, 0, 0);
+  layout->setSpacing(8);
+
+  lineEdit_->setMinimumHeight(32);
+  browseButton_->setFixedWidth(90);
+  browseButton_->setMinimumHeight(32);
+
   layout->addWidget(lineEdit_);
   layout->addWidget(browseButton_);
 

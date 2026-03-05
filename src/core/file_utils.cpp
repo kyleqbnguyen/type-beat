@@ -1,42 +1,11 @@
-#include "file_utils.h"
+#include "core/file_utils.h"
 
 #include <QDir>
 #include <QFileInfo>
-#include <array>
-#include <cstddef>
-#include <filesystem>
-#include <string>
-#include <unordered_set>
 
-namespace {
+namespace core::file {
 
-constexpr std::size_t categoryCount = 3;
-
-const std::array<std::unordered_set<std::string>, categoryCount> validExts = {{
-    {".mp3", ".wav"},          // Audio
-    {".mp4", ".mov"},          // Video
-    {".png", ".jpg", ".jpeg"}, // Image
-}};
-
-} // anonymous namespace
-
-bool core::file::isValid(const core::file::FileInfo &fileInfo) {
-  if (!std::filesystem::exists(fileInfo.path)) {
-    return false;
-  }
-
-  auto index = static_cast<std::size_t>(fileInfo.category);
-  if (index >= categoryCount) {
-    return false;
-  }
-
-  std::string ext{fileInfo.path.extension()};
-
-  return validExts.at(index).contains(ext);
-}
-
-QString core::file::generateOutputPath(const QString &audioPath,
-                                       const QString &outputDir) {
+QString generateOutputPath(const QString &audioPath, const QString &outputDir) {
   QFileInfo audioInfo(audioPath);
   QString baseName = audioInfo.completeBaseName();
   QString outputName = baseName + QStringLiteral("_type_beat");
@@ -44,7 +13,6 @@ QString core::file::generateOutputPath(const QString &audioPath,
   QDir dir(outputDir);
   QString outputPath = dir.filePath(outputName + QStringLiteral(".mp4"));
 
-  // If file exists, append _1, _2, etc.
   int counter = 1;
   while (QFileInfo::exists(outputPath)) {
     outputPath =
@@ -54,3 +22,5 @@ QString core::file::generateOutputPath(const QString &audioPath,
 
   return outputPath;
 }
+
+} // namespace core::file

@@ -13,20 +13,29 @@ namespace ui {
 
 namespace {
 
-const QString kVisualFilter =
+const QString visualFilter =
     QStringLiteral("Visual (*.png *.jpg *.jpeg *.mp4 *.mov)");
-const QString kAudioFilter = QStringLiteral("Audio (*.mp3 *.wav)");
-const QString kOutputFilter = QStringLiteral("Video (*.mp4)");
+const QString audioFilter = QStringLiteral("Audio (*.mp3 *.wav)");
+const QString outputFilter = QStringLiteral("Video (*.mp4)");
+
+constexpr int windowWidth = 550;
+constexpr int windowHeight = 240;
+constexpr int windowMargin = 24;
+constexpr int formRowSpacing = 16;
+constexpr int buttonTopSpacing = 24;
+constexpr int statusTopSpacing = 12;
+constexpr int buttonHeight = 40;
 
 } // namespace
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), visualInput_(nullptr), audioInput_(nullptr),
       outputInput_(nullptr), generateButton_(nullptr), statusLabel_(nullptr),
-      durationProbe_(nullptr), renderer_(nullptr) {
+      progressBar_(nullptr), durationProbe_(nullptr), renderer_(nullptr),
+      outputManuallyEdited_(false), settingOutputProgrammatically_(false) {
   setupUi();
   setWindowTitle(tr("Type Beat Generator"));
-  resize(500, 200);
+  resize(windowWidth, windowHeight);
 }
 
 void MainWindow::setupUi() {
@@ -34,28 +43,43 @@ void MainWindow::setupUi() {
   setCentralWidget(centralWidget);
 
   auto *mainLayout = new QVBoxLayout(centralWidget);
+  mainLayout->setContentsMargins(windowMargin, windowMargin, windowMargin,
+                                 windowMargin);
 
   auto *formLayout = new QFormLayout();
+  formLayout->setVerticalSpacing(formRowSpacing);
+  formLayout->setLabelAlignment(Qt::AlignRight | Qt::AlignVCenter);
 
-  visualInput_ = new FileInput(kVisualFilter, FileInput::Mode::Open, this);
+  visualInput_ = new FileInput(visualFilter, FileInput::Mode::Open, this);
   visualInput_->setPath(settings_.lastVisualPath());
-  formLayout->addRow(tr("Visual:"), visualInput_);
+  formLayout->addRow(tr("Visual"), visualInput_);
 
-  audioInput_ = new FileInput(kAudioFilter, FileInput::Mode::Open, this);
+  audioInput_ = new FileInput(audioFilter, FileInput::Mode::Open, this);
   audioInput_->setPath(settings_.lastAudioPath());
-  formLayout->addRow(tr("Audio:"), audioInput_);
+  formLayout->addRow(tr("Audio"), audioInput_);
 
-  outputInput_ = new FileInput(kOutputFilter, FileInput::Mode::Save, this);
-  formLayout->addRow(tr("Output:"), outputInput_);
+  outputInput_ = new FileInput(outputFilter, FileInput::Mode::Save, this);
+  formLayout->addRow(tr("Output"), outputInput_);
 
   mainLayout->addLayout(formLayout);
 
+  mainLayout->addSpacing(buttonTopSpacing);
+
   generateButton_ = new QPushButton(tr("Generate"), this);
   generateButton_->setEnabled(false);
+  generateButton_->setMinimumHeight(buttonHeight);
   mainLayout->addWidget(generateButton_);
+
+  mainLayout->addSpacing(statusTopSpacing);
 
   statusLabel_ = new QLabel(tr("Ready"), this);
   mainLayout->addWidget(statusLabel_);
+
+  progressBar_ = new QProgressBar(this);
+  progressBar_->setMinimum(0);
+  progressBar_->setMaximum(0); // Indeterminate mode
+  progressBar_->setVisible(false);
+  mainLayout->addWidget(progressBar_);
 
   mainLayout->addStretch();
 
@@ -68,17 +92,37 @@ void MainWindow::setupUi() {
   connect(generateButton_, &QPushButton::clicked, this,
           &MainWindow::onGenerateClicked);
 
-  // Auto-generate output path when audio changes
-  connect(audioInput_, &FileInput::pathChanged, this,
-          [this](const QString &audioPath) {
-            if (!audioPath.isEmpty() && QFileInfo::exists(audioPath)) {
-              QString outputPath = core::file::generateOutputPath(
-                  audioPath, settings_.outputDir());
-              outputInput_->setPath(outputPath);
-            }
-          });
+  // Auto-generate output path when both inputs are valid
+  auto updateOutputPath = [this]() {
+    if (outputManuallyEdited_) {
+      return;
+    }
+    QString visualPath = visualInput_->path();
+    QString audioPath = audioInput_->path();
+    if (!visualPath.isEmpty() && QFileInfo::exists(visualPath) &&
+        !audioPath.isEmpty() && QFileInfo::exists(audioPath)) {
+      QString outputPath =
+          core::file::generateOutputPath(audioPath, settings_.outputDir());
+      settingOutputProgrammatically_ = true;
+      outputInput_->setPath(outputPath);
+      settingOutputProgrammatically_ = false;
+    }
+  };
+
+  connect(visualInput_, &FileInput::pathChanged, this, updateOutputPath);
+  connect(audioInput_, &FileInput::pathChanged, this, updateOutputPath);
+
+  // Track manual edits to output field
+  connect(outputInput_, &FileInput::pathChanged, this, [this]() {
+    if (!settingOutputProgrammatically_) {
+      outputManuallyEdited_ = true;
+    }
+  });
 
   updateGenerateButton();
+
+  // Trigger initial output path generation if both inputs are already set
+  updateOutputPath();
 }
 
 void MainWindow::updateGenerateButton() {
@@ -98,6 +142,18 @@ void MainWindow::onGenerateClicked() {
   pendingAudioPath_ = audioInput_->path();
   pendingOutputPath_ = outputInput_->path();
 
+  // Check if output file exists and prompt for overwrite
+  if (QFileInfo::exists(pendingOutputPath_)) {
+    QMessageBox::StandardButton reply = QMessageBox::question(
+        this, tr("File Exists"),
+        tr("The file '%1' already exists. Do you want to overwrite it?")
+            .arg(pendingOutputPath_),
+        QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+    if (reply != QMessageBox::Yes) {
+      return;
+    }
+  }
+
   // Save paths for next session
   settings_.setLastVisualPath(pendingVisualPath_);
   settings_.setLastAudioPath(pendingAudioPath_);
@@ -105,6 +161,7 @@ void MainWindow::onGenerateClicked() {
 
   setUiEnabled(false);
   setStatus(tr("Getting audio duration..."));
+  progressBar_->setVisible(true);
 
   // Create new probe for this operation
   durationProbe_ = new core::ffprobe::DurationProbe(this);
@@ -137,6 +194,7 @@ void MainWindow::onDurationError(const QString &error) {
   durationProbe_ = nullptr;
 
   setStatus(tr("Error: %1").arg(error));
+  progressBar_->setVisible(false);
   setUiEnabled(true);
 }
 
@@ -145,6 +203,7 @@ void MainWindow::onRenderFinished() {
   renderer_ = nullptr;
 
   setStatus(tr("Done! Saved to: %1").arg(pendingOutputPath_));
+  progressBar_->setVisible(false);
   setUiEnabled(true);
 }
 
@@ -153,6 +212,7 @@ void MainWindow::onRenderError(const QString &error) {
   renderer_ = nullptr;
 
   setStatus(tr("Error: %1").arg(error));
+  progressBar_->setVisible(false);
   setUiEnabled(true);
 }
 

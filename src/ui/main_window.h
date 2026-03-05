@@ -6,6 +6,7 @@
 
 #include <QLabel>
 #include <QMainWindow>
+#include <QProgressBar>
 #include <QPushButton>
 
 namespace core::ffmpeg {
@@ -38,6 +39,7 @@ private:
   FileInput *outputInput_;
   QPushButton *generateButton_;
   QLabel *statusLabel_;
+  QProgressBar *progressBar_;
 
   settings::AppSettings settings_;
   core::ffprobe::DurationProbe *durationProbe_;
@@ -46,6 +48,9 @@ private:
   QString pendingVisualPath_;
   QString pendingAudioPath_;
   QString pendingOutputPath_;
+
+  bool outputManuallyEdited_;
+  bool settingOutputProgrammatically_;
 };
 
 } // namespace ui

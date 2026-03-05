@@ -17,7 +17,7 @@ public:
   explicit FileInput(const QString &filter, Mode mode = Mode::Open,
                      QWidget *parent = nullptr);
 
-  [[nodiscard]]QString path() const;
+  [[nodiscard]] QString path() const;
   void setPath(const QString &path);
 
 signals:
