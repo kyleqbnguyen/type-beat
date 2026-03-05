@@ -29,63 +29,83 @@ protected:
 };
 
 TEST_F(FileValidationTest, ValidAudio) {
-  EXPECT_TRUE(core::file::isValid(
-      {.path = tmpDir / "test.mp3", .category = core::file::Category::Audio}));
+  EXPECT_TRUE(core::file::isValid({.path = tmpDir / "test.mp3",
+                                   .category = core::file::Category::Audio,
+                                   .duration{}}));
 
-  EXPECT_TRUE(core::file::isValid(
-      {.path = tmpDir / "test.wav", .category = core::file::Category::Audio}));
+  EXPECT_TRUE(core::file::isValid({.path = tmpDir / "test.wav",
+                                   .category = core::file::Category::Audio,
+                                   .duration{}}));
 }
 
 TEST_F(FileValidationTest, ValidImage) {
-  EXPECT_TRUE(core::file::isValid(
-      {.path = tmpDir / "test.png", .category = core::file::Category::Image}));
-  EXPECT_TRUE(core::file::isValid(
-      {.path = tmpDir / "test.jpg", .category = core::file::Category::Image}));
-  EXPECT_TRUE(core::file::isValid(
-      {.path = tmpDir / "test.jpeg", .category = core::file::Category::Image}));
+  EXPECT_TRUE(core::file::isValid({.path = tmpDir / "test.png",
+                                   .category = core::file::Category::Image,
+                                   .duration{}}));
+  EXPECT_TRUE(core::file::isValid({.path = tmpDir / "test.jpg",
+                                   .category = core::file::Category::Image,
+                                   .duration{}}));
+  EXPECT_TRUE(core::file::isValid({.path = tmpDir / "test.jpeg",
+                                   .category = core::file::Category::Image,
+                                   .duration{}}));
 }
 
 TEST_F(FileValidationTest, WrongCategory) {
-  EXPECT_FALSE(core::file::isValid(
-      {.path = tmpDir / "test.mp3", .category = core::file::Category::Image}));
-  EXPECT_FALSE(core::file::isValid(
-      {.path = tmpDir / "test.png", .category = core::file::Category::Audio}));
-  EXPECT_FALSE(core::file::isValid(
-      {.path = tmpDir / "test.mp4", .category = core::file::Category::Image}));
+  EXPECT_FALSE(core::file::isValid({.path = tmpDir / "test.mp3",
+                                    .category = core::file::Category::Image,
+                                    .duration{}}));
+  EXPECT_FALSE(core::file::isValid({.path = tmpDir / "test.png",
+                                    .category = core::file::Category::Audio,
+                                    .duration{}}));
+  EXPECT_FALSE(core::file::isValid({.path = tmpDir / "test.mp4",
+                                    .category = core::file::Category::Image,
+                                    .duration{}}));
 }
 
 TEST_F(FileValidationTest, InvalidExtension) {
-  EXPECT_FALSE(core::file::isValid(
-      {.path = tmpDir / "test.txt", .category = core::file::Category::Audio}));
-  EXPECT_FALSE(core::file::isValid(
-      {.path = tmpDir / "test.txt", .category = core::file::Category::Video}));
-  EXPECT_FALSE(core::file::isValid(
-      {.path = tmpDir / "test.txt", .category = core::file::Category::Image}));
+  EXPECT_FALSE(core::file::isValid({.path = tmpDir / "test.txt",
+                                    .category = core::file::Category::Audio,
+                                    .duration{}}));
+  EXPECT_FALSE(core::file::isValid({.path = tmpDir / "test.txt",
+                                    .category = core::file::Category::Video,
+                                    .duration{}}));
+  EXPECT_FALSE(core::file::isValid({.path = tmpDir / "test.txt",
+                                    .category = core::file::Category::Image,
+                                    .duration{}}));
 }
 
 TEST_F(FileValidationTest, NonExistentFile) {
   EXPECT_FALSE(core::file::isValid({.path = tmpDir / "nonexistent.mp3",
-                                       .category = core::file::Category::Audio}));
+                                    .category = core::file::Category::Audio,
+                                    .duration{}}));
   EXPECT_FALSE(core::file::isValid({.path = tmpDir / "nonexistent.mp3",
-                                       .category = core::file::Category::Video}));
+                                    .category = core::file::Category::Video,
+                                    .duration{}}));
   EXPECT_FALSE(core::file::isValid({.path = tmpDir / "nonexistent.mp3",
-                                       .category = core::file::Category::Image}));
+                                    .category = core::file::Category::Image,
+                                    .duration{}}));
 }
 
 TEST_F(FileValidationTest, CaseSensitivity) {
-  EXPECT_FALSE(core::file::isValid(
-      {.path = tmpDir / "test.MP3", .category = core::file::Category::Audio}));
-  EXPECT_FALSE(core::file::isValid(
-      {.path = tmpDir / "test.MP4", .category = core::file::Category::Video}));
-  EXPECT_FALSE(core::file::isValid(
-      {.path = tmpDir / "test.JPG", .category = core::file::Category::Image}));
+  EXPECT_FALSE(core::file::isValid({.path = tmpDir / "test.MP3",
+                                    .category = core::file::Category::Audio,
+                                    .duration{}}));
+  EXPECT_FALSE(core::file::isValid({.path = tmpDir / "test.MP4",
+                                    .category = core::file::Category::Video,
+                                    .duration{}}));
+  EXPECT_FALSE(core::file::isValid({.path = tmpDir / "test.JPG",
+                                    .category = core::file::Category::Image,
+                                    .duration{}}));
 }
 
 TEST_F(FileValidationTest, NoExtension) {
-  EXPECT_FALSE(core::file::isValid(
-      {.path = tmpDir / "noext", .category = core::file::Category::Audio}));
-  EXPECT_FALSE(core::file::isValid(
-      {.path = tmpDir / "noext", .category = core::file::Category::Video}));
-  EXPECT_FALSE(core::file::isValid(
-      {.path = tmpDir / "noext", .category = core::file::Category::Image}));
+  EXPECT_FALSE(core::file::isValid({.path = tmpDir / "noext",
+                                    .category = core::file::Category::Audio,
+                                    .duration{}}));
+  EXPECT_FALSE(core::file::isValid({.path = tmpDir / "noext",
+                                    .category = core::file::Category::Video,
+                                    .duration{}}));
+  EXPECT_FALSE(core::file::isValid({.path = tmpDir / "noext",
+                                    .category = core::file::Category::Image,
+                                    .duration{}}));
 }
