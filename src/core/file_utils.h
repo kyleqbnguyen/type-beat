@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QString>
 #include <cstdint>
 #include <filesystem>
 #include <optional>
@@ -14,7 +15,8 @@ struct FileInfo {
   std::optional<double> duration;
 };
 
-
 bool isValid(const core::file::FileInfo &fileInfo);
+
+QString generateOutputPath(const QString &audioPath, const QString &outputDir);
 
 } // namespace core::file
