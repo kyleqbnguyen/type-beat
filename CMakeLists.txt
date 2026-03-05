@@ -24,8 +24,9 @@ endif()
 
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets)
 
-add_library(core OBJECT src/core/file_utils.cpp)
+add_library(core OBJECT src/core/file_utils.cpp src/core/ffprobe.cpp)
 target_include_directories(core PUBLIC ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(core PRIVATE Qt6::Core)
 
 add_executable(${PROJECT_NAME} src/main.cpp)
 target_link_libraries(${PROJECT_NAME} PRIVATE core Qt6::Widgets Qt6::Core)
