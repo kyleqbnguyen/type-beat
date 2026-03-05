@@ -1,3 +1,13 @@
+# Design considerations
+- how output is saved?
+  - default system Downloads 
+  - user configurable and updates on each export
+- Bundle ffmpeg w/ app
+- Errors: log in backend and simple message in UI
+- Overwrting: 
+  - index default name if alr exist
+  - prompt overwrite
+
 # Image
 ffmpeg -loop 1 -framerate 1 -i image.png -i audio.mp3 \
   -c:v libx264 -tune stillimage -preset ultrafast -crf 18 \
