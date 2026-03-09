@@ -40,3 +40,72 @@ target_link_libraries(ui PUBLIC Qt6::Widgets Qt6::Core core settings)
 add_executable(${PROJECT_NAME} src/main.cpp)
 target_link_libraries(${PROJECT_NAME} PRIVATE ui core settings Qt6::Widgets
                                               Qt6::Core)
+
+if(APPLE)
+  set_target_properties(
+    ${PROJECT_NAME}
+    PROPERTIES MACOSX_BUNDLE TRUE
+               MACOSX_BUNDLE_BUNDLE_NAME "TypeBeat"
+               MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
+               MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
+               MACOSX_BUNDLE_GUI_IDENTIFIER "com.typebeat.app"
+               MACOSX_BUNDLE_INFO_PLIST
+               "${CMAKE_SOURCE_DIR}/packaging/macos/Info.plist.in")
+endif()
+
+if(WIN32)
+  set_target_properties(${PROJECT_NAME} PROPERTIES WIN32_EXECUTABLE TRUE)
+endif()
+
+include(GNUInstallDirs)
+
+if(APPLE)
+  # macOS: Install the .app bundle
+  install(TARGETS ${PROJECT_NAME} BUNDLE DESTINATION .)
+elseif(WIN32)
+  # Windows: Install executable to bin/
+  install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION .)
+else()
+  # Linux: Standard FHS layout
+  install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+  install(FILES packaging/linux/type-beat.desktop
+          DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications)
+  install(FILES packaging/linux/type-beat.png
+          DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/256x256/apps)
+  install(FILES packaging/linux/type-beat.appdata.xml
+          DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/metainfo)
+endif()
+
+set(CPACK_PACKAGE_NAME "TypeBeat")
+set(CPACK_PACKAGE_VENDOR "TypeBeat")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY
+    "Combine visuals with audio to create videos")
+set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
+set(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
+set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
+set(CPACK_PACKAGE_INSTALL_DIRECTORY "TypeBeat")
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE")
+
+if(WIN32)
+  set(CPACK_GENERATOR "NSIS")
+  set(CPACK_NSIS_DISPLAY_NAME "TypeBeat")
+  set(CPACK_NSIS_PACKAGE_NAME "TypeBeat")
+  set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)
+  set(CPACK_NSIS_MUI_ICON "${CMAKE_SOURCE_DIR}/packaging/windows/TypeBeat.ico")
+  set(CPACK_NSIS_MUI_UNIICON
+      "${CMAKE_SOURCE_DIR}/packaging/windows/TypeBeat.ico")
+  set(CPACK_NSIS_INSTALLED_ICON_NAME "type-beat.exe")
+  set(CPACK_NSIS_CREATE_ICONS_EXTRA
+      "CreateShortCut '$SMPROGRAMS\\\\$STARTMENU_FOLDER\\\\TypeBeat.lnk' '$INSTDIR\\\\type-beat.exe'"
+  )
+  set(CPACK_NSIS_DELETE_ICONS_EXTRA
+      "Delete '$SMPROGRAMS\\\\$START_MENU\\\\TypeBeat.lnk'")
+elseif(APPLE)
+  set(CPACK_GENERATOR "DragNDrop")
+  set(CPACK_DMG_VOLUME_NAME "TypeBeat")
+  set(CPACK_DMG_FORMAT "UDZO")
+else()
+  set(CPACK_GENERATOR "TGZ")
+endif()
+
+include(CPack)

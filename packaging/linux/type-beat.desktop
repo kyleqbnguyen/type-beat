@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=TypeBeat
+GenericName=Video Creator
+Comment=Combine visuals with audio to create videos
+Exec=type-beat %F
+Icon=type-beat
+Terminal=false
+Categories=AudioVideo;Video;AudioVideoEditing;
+Keywords=video;audio;ffmpeg;render;
+StartupNotify=true
+MimeType=video/*;audio/*;image/*;

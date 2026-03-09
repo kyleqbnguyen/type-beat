@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.typebeat.app</id>
+  <name>TypeBeat</name>
+  <summary>Combine visuals with audio to create videos</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  
+  <description>
+    <p>
+      TypeBeat is a simple desktop application that lets you combine 
+      images or videos with audio tracks to create output videos using FFmpeg.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>Combine static images with audio to create video</li>
+      <li>Merge video with different audio tracks</li>
+      <li>Simple, intuitive interface</li>
+      <li>Powered by FFmpeg for high-quality output</li>
+    </ul>
+  </description>
+  
+  <launchable type="desktop-id">type-beat.desktop</launchable>
+  
+  <url type="homepage">https://github.com/YOURUSERNAME/type-beat</url>
+  <url type="bugtracker">https://github.com/YOURUSERNAME/type-beat/issues</url>
+  
+  <provides>
+    <binary>type-beat</binary>
+  </provides>
+  
+  <releases>
+    <release version="0.1.0" date="2026-03-09">
+      <description>
+        <p>Initial release</p>
+      </description>
+    </release>
+  </releases>
+  
+  <content_rating type="oars-1.1" />
+  
+  <categories>
+    <category>AudioVideo</category>
+    <category>Video</category>
+  </categories>
+</component>

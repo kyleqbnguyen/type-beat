@@ -1,2 +1,11 @@
 build/
 .cache/
+
+packaging/macos/*.icns
+
+.vscode/
+.idea/
+*.user
+
+.DS_Store
+Thumbs.db

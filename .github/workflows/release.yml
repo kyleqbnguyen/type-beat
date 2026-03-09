@@ -1,0 +1,277 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (e.g., 0.1.0)'
+        required: true
+        default: '0.1.0'
+
+env:
+  QT_VERSION: '6.6.2'
+  BUILD_TYPE: Release
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: windows
+          target: desktop
+          arch: win64_msvc2019_64
+          cache: true
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Download FFmpeg
+        shell: pwsh
+        run: |
+          $ffmpegUrl = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
+          Invoke-WebRequest -Uri $ffmpegUrl -OutFile ffmpeg.zip
+          Expand-Archive -Path ffmpeg.zip -DestinationPath ffmpeg-temp
+          # Find the extracted directory (name includes version)
+          $ffmpegDir = Get-ChildItem -Path ffmpeg-temp -Directory | Select-Object -First 1
+          Move-Item -Path "$($ffmpegDir.FullName)/bin/ffmpeg.exe" -Destination ffmpeg.exe
+          Move-Item -Path "$($ffmpegDir.FullName)/bin/ffprobe.exe" -Destination ffprobe.exe
+          Remove-Item -Recurse -Force ffmpeg-temp, ffmpeg.zip
+
+      - name: Configure CMake
+        run: cmake -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+
+      - name: Build
+        run: cmake --build build --config ${{ env.BUILD_TYPE }}
+
+      - name: Deploy Qt
+        shell: pwsh
+        run: |
+          mkdir -p dist
+          Copy-Item build/${{ env.BUILD_TYPE }}/type-beat.exe dist/
+          Copy-Item ffmpeg.exe dist/
+          Copy-Item ffprobe.exe dist/
+          windeployqt --release --no-translations --no-system-d3d-compiler --no-opengl-sw dist/type-beat.exe
+
+      - name: Create installer with CPack
+        working-directory: build
+        run: cpack -G NSIS -C ${{ env.BUILD_TYPE }}
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: build/TypeBeat-*.exe
+
+      - name: Upload portable
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-portable
+          path: dist/
+
+  build-macos:
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: mac
+          target: desktop
+          arch: clang_64
+          cache: true
+
+      - name: Download FFmpeg
+        run: |
+          # Download ffmpeg and ffprobe from evermeet.cx
+          curl -L -o ffmpeg.7z "https://evermeet.cx/ffmpeg/getrelease/ffmpeg/7z"
+          curl -L -o ffprobe.7z "https://evermeet.cx/ffmpeg/getrelease/ffprobe/7z"
+          7z x ffmpeg.7z
+          7z x ffprobe.7z
+          chmod +x ffmpeg ffprobe
+
+      - name: Generate .icns icon
+        run: |
+          iconutil -c icns packaging/macos/TypeBeat.iconset -o packaging/macos/TypeBeat.icns
+
+      - name: Configure CMake
+        run: cmake -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+
+      - name: Build
+        run: cmake --build build --config ${{ env.BUILD_TYPE }}
+
+      - name: Deploy Qt and bundle FFmpeg
+        run: |
+          # Copy FFmpeg binaries into the app bundle
+          cp ffmpeg "build/type-beat.app/Contents/MacOS/"
+          cp ffprobe "build/type-beat.app/Contents/MacOS/"
+          
+          # Copy icon
+          mkdir -p "build/type-beat.app/Contents/Resources"
+          cp packaging/macos/TypeBeat.icns "build/type-beat.app/Contents/Resources/"
+          
+          # Deploy Qt frameworks
+          macdeployqt build/type-beat.app -always-overwrite
+
+      - name: Create DMG
+        run: |
+          # Install create-dmg
+          brew install create-dmg
+          
+          # Create DMG
+          create-dmg \
+            --volname "TypeBeat" \
+            --volicon "packaging/macos/TypeBeat.icns" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 100 \
+            --icon "type-beat.app" 150 185 \
+            --hide-extension "type-beat.app" \
+            --app-drop-link 450 185 \
+            "TypeBeat-${{ github.ref_name || inputs.version }}-macOS.dmg" \
+            "build/type-beat.app" || true
+          
+          # If create-dmg fails, fall back to simple hdiutil
+          if [ ! -f "TypeBeat-${{ github.ref_name || inputs.version }}-macOS.dmg" ]; then
+            hdiutil create -volname "TypeBeat" -srcfolder "build/type-beat.app" -ov -format UDZO "TypeBeat-${{ github.ref_name || inputs.version }}-macOS.dmg"
+          fi
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: "*.dmg"
+
+  build-linux:
+    runs-on: ubuntu-22.04
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libxcb-cursor0 \
+            libxkbcommon-x11-0 \
+            libxcb-icccm4 \
+            libxcb-image0 \
+            libxcb-keysyms1 \
+            libxcb-randr0 \
+            libxcb-render-util0 \
+            libxcb-shape0 \
+            libfuse2 \
+            desktop-file-utils \
+            appstream
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: linux
+          target: desktop
+          arch: gcc_64
+          cache: true
+
+      - name: Download FFmpeg
+        run: |
+          curl -L -o ffmpeg.tar.xz "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz"
+          tar xf ffmpeg.tar.xz
+          mv ffmpeg-*-amd64-static/ffmpeg .
+          mv ffmpeg-*-amd64-static/ffprobe .
+          chmod +x ffmpeg ffprobe
+          rm -rf ffmpeg-*-amd64-static ffmpeg.tar.xz
+
+      - name: Download linuxdeploy
+        run: |
+          wget -q "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage"
+          wget -q "https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage"
+          chmod +x linuxdeploy-x86_64.AppImage linuxdeploy-plugin-qt-x86_64.AppImage
+
+      - name: Configure CMake
+        run: cmake -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DCMAKE_INSTALL_PREFIX=/usr
+
+      - name: Build
+        run: cmake --build build --config ${{ env.BUILD_TYPE }}
+
+      - name: Create AppDir
+        run: |
+          mkdir -p AppDir/usr/bin
+          mkdir -p AppDir/usr/share/applications
+          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
+          mkdir -p AppDir/usr/share/metainfo
+          
+          # Copy main executable
+          cp build/type-beat AppDir/usr/bin/
+          
+          # Copy FFmpeg binaries
+          cp ffmpeg AppDir/usr/bin/
+          cp ffprobe AppDir/usr/bin/
+          
+          # Copy desktop file and icons
+          cp packaging/linux/type-beat.desktop AppDir/usr/share/applications/
+          cp packaging/linux/type-beat.png AppDir/usr/share/icons/hicolor/256x256/apps/
+          cp packaging/linux/type-beat.appdata.xml AppDir/usr/share/metainfo/
+          
+          # Create symlinks for linuxdeploy
+          ln -sf usr/share/applications/type-beat.desktop AppDir/
+          ln -sf usr/share/icons/hicolor/256x256/apps/type-beat.png AppDir/
+
+      - name: Create AppImage
+        env:
+          QMAKE: ${{ env.Qt6_DIR }}/bin/qmake
+        run: |
+          export VERSION="${{ github.ref_name || inputs.version }}"
+          ./linuxdeploy-x86_64.AppImage --appdir AppDir --plugin qt --output appimage
+
+      - name: Upload AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-appimage
+          path: "*.AppImage"
+
+  release:
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Display artifacts
+        run: find artifacts -type f
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: false
+          prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+          generate_release_notes: true
+          files: |
+            artifacts/windows-installer/*
+            artifacts/macos-dmg/*
+            artifacts/linux-appimage/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
