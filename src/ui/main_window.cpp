@@ -48,6 +48,7 @@ void MainWindow::setupUi() {
 
   auto *formLayout = new QFormLayout();
   formLayout->setVerticalSpacing(formRowSpacing);
+  formLayout->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
   formLayout->setLabelAlignment(Qt::AlignRight | Qt::AlignVCenter);
 
   visualInput_ = new FileInput(visualFilter, FileInput::Mode::Open, this);
