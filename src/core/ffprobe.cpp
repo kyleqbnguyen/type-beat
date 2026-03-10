@@ -107,8 +107,7 @@ void DurationProbe::onProcessError(QProcess::ProcessError error) {
 }
 
 QString DurationProbe::ffprobePath() {
-  return QCoreApplication::applicationDirPath() +
-         QStringLiteral("/bin/ffprobe");
+  return QCoreApplication::applicationDirPath() + QStringLiteral("/ffprobe");
 }
 
 } // namespace core::ffprobe

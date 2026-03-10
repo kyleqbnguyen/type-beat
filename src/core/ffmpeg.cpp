@@ -98,7 +98,7 @@ void Renderer::onProcessError(QProcess::ProcessError error) {
 }
 
 QString Renderer::ffmpegPath() {
-  return QCoreApplication::applicationDirPath() + QStringLiteral("/bin/ffmpeg");
+  return QCoreApplication::applicationDirPath() + QStringLiteral("/ffmpeg");
 }
 
 bool Renderer::isImageFile(const QString &path) {
