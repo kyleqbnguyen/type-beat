@@ -21,8 +21,7 @@ Renderer::Renderer(QObject *parent) : QObject(parent) {
 }
 
 void Renderer::render(const QString &visualPath, const QString &audioPath,
-                      const QString &outputPath, double audioDuration,
-                      double videoDuration) {
+                      const QString &outputPath) {
   if (process_.state() != QProcess::NotRunning) {
     emit errorOccurred(QStringLiteral("Render already in progress"));
     return;
@@ -54,8 +53,7 @@ void Renderer::render(const QString &visualPath, const QString &audioPath,
   if (isImageFile(visualPath)) {
     args = buildImageArgs(visualPath, audioPath, outputPath);
   } else {
-    args =
-        buildVideoArgs(visualPath, audioPath, outputPath, audioDuration, videoDuration);
+    args = buildVideoArgs(visualPath, audioPath, outputPath);
   }
 
   process_.start(ffmpeg, args);
@@ -135,10 +133,6 @@ bool Renderer::isImageFile(const QString &path) {
          ext == QStringLiteral("bmp") || ext == QStringLiteral("webp");
 }
 
-// ffmpeg -loop 1 -framerate 1 -i image.png -i audio.mp3
-//   -c:v libx264 -tune stillimage -preset ultrafast -crf 18
-//   -c:a aac -b:a 192k -pix_fmt yuv420p -r 1 -shortest
-//   -vf "scale=..." output.mp4
 QStringList Renderer::buildImageArgs(const QString &visualPath,
                                      const QString &audioPath,
                                      const QString &outputPath) const {
@@ -152,6 +146,10 @@ QStringList Renderer::buildImageArgs(const QString &visualPath,
       visualPath,
       QStringLiteral("-i"),
       audioPath,
+      QStringLiteral("-map"),
+      QStringLiteral("0:v:0"),
+      QStringLiteral("-map"),
+      QStringLiteral("1:a:0"),
       QStringLiteral("-c:v"),
       QStringLiteral("libx264"),
       QStringLiteral("-tune"),
@@ -177,31 +175,36 @@ QStringList Renderer::buildImageArgs(const QString &visualPath,
 
 QStringList Renderer::buildVideoArgs(const QString &visualPath,
                                      const QString &audioPath,
-                                     const QString &outputPath,
-                                     double audioDuration,
-                                     double videoDuration) const {
-  QStringList args;
-  args << QStringLiteral("-y");
-
-  if (videoDuration < audioDuration) {
-    args << QStringLiteral("-stream_loop") << QStringLiteral("-1");
-  }
-
-  args << QStringLiteral("-i") << visualPath;
-  args << QStringLiteral("-i") << audioPath;
-  args << QStringLiteral("-map") << QStringLiteral("0:v");
-  args << QStringLiteral("-map") << QStringLiteral("1:a");
-  args << QStringLiteral("-c:v") << QStringLiteral("libx264");
-  args << QStringLiteral("-preset") << QStringLiteral("ultrafast");
-  args << QStringLiteral("-crf") << QStringLiteral("23");
-  args << QStringLiteral("-c:a") << QStringLiteral("aac");
-  args << QStringLiteral("-b:a") << QStringLiteral("192k");
-  args << QStringLiteral("-pix_fmt") << QStringLiteral("yuv420p");
-  args << QStringLiteral("-t") << QString::number(audioDuration, 'f', 3);
-  args << QStringLiteral("-vf") << scaleFilter;
-  args << outputPath;
-
-  return args;
+                                     const QString &outputPath) const {
+  return {
+      QStringLiteral("-y"),
+      QStringLiteral("-stream_loop"),
+      QStringLiteral("-1"),
+      QStringLiteral("-i"),
+      visualPath,
+      QStringLiteral("-i"),
+      audioPath,
+      QStringLiteral("-map"),
+      QStringLiteral("0:v:0"),
+      QStringLiteral("-map"),
+      QStringLiteral("1:a:0"),
+      QStringLiteral("-c:v"),
+      QStringLiteral("libx264"),
+      QStringLiteral("-preset"),
+      QStringLiteral("ultrafast"),
+      QStringLiteral("-crf"),
+      QStringLiteral("23"),
+      QStringLiteral("-c:a"),
+      QStringLiteral("aac"),
+      QStringLiteral("-b:a"),
+      QStringLiteral("192k"),
+      QStringLiteral("-pix_fmt"),
+      QStringLiteral("yuv420p"),
+      QStringLiteral("-shortest"),
+      QStringLiteral("-vf"),
+      scaleFilter,
+      outputPath,
+  };
 }
 
 } // namespace core::ffmpeg
