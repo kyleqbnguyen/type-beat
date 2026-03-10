@@ -26,6 +26,7 @@ private:
   static QString ffprobePath();
 
   QProcess process_;
+  bool errorEmitted_ = false;
 };
 
 } // namespace core::ffprobe

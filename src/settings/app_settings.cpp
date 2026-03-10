@@ -46,7 +46,12 @@ void AppSettings::setLastAudioPath(const QString &path) {
 }
 
 QString AppSettings::defaultOutputDir() {
-  return QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
+  QString path =
+      QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
+  if (path.isEmpty()) {
+    path = QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
+  }
+  return path;
 }
 
 } // namespace settings

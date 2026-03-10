@@ -35,6 +35,7 @@ private:
                              double audioDuration) const;
 
   QProcess process_;
+  bool errorEmitted_ = false;
 };
 
 } // namespace core::ffmpeg

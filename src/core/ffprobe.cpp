@@ -1,6 +1,7 @@
 #include "core/ffprobe.h"
 
 #include <QCoreApplication>
+#include <QDir>
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -15,6 +16,13 @@ DurationProbe::DurationProbe(QObject *parent) : QObject(parent) {
 }
 
 void DurationProbe::probe(const QString &filePath) {
+  if (process_.state() != QProcess::NotRunning) {
+    emit errorOccurred(QStringLiteral("Probe already in progress"));
+    return;
+  }
+
+  errorEmitted_ = false;
+
   QString ffprobe{ffprobePath()};
 
   if (!QFile::exists(ffprobe)) {
@@ -36,12 +44,18 @@ void DurationProbe::probe(const QString &filePath) {
 
 void DurationProbe::onProcessFinished(int exitCode,
                                       QProcess::ExitStatus exitStatus) {
+  if (errorEmitted_) {
+    return;
+  }
+
   if (exitStatus == QProcess::CrashExit) {
+    errorEmitted_ = true;
     emit errorOccurred(QStringLiteral("ffprobe process crashed"));
     return;
   }
 
   if (exitCode != 0) {
+    errorEmitted_ = true;
     emit errorOccurred(
         QStringLiteral("ffprobe failed with exit code: %1").arg(exitCode));
     return;
@@ -52,6 +66,7 @@ void DurationProbe::onProcessFinished(int exitCode,
   QJsonDocument doc{QJsonDocument::fromJson(output, &parseError)};
 
   if (parseError.error != QJsonParseError::NoError) {
+    errorEmitted_ = true;
     emit errorOccurred(QStringLiteral("Failed to parse ffprobe output: %1")
                            .arg(parseError.errorString()));
     return;
@@ -61,6 +76,7 @@ void DurationProbe::onProcessFinished(int exitCode,
   QJsonObject format{root.value(QStringLiteral("format")).toObject()};
 
   if (!format.contains(QStringLiteral("duration"))) {
+    errorEmitted_ = true;
     emit errorOccurred(QStringLiteral("Duration not found in ffprobe output"));
     return;
   }
@@ -69,9 +85,10 @@ void DurationProbe::onProcessFinished(int exitCode,
   bool ok{false};
   double seconds{durationStr.toDouble(&ok)};
 
-  if (!ok) {
+  if (!ok || seconds <= 0) {
+    errorEmitted_ = true;
     emit errorOccurred(
-        QStringLiteral("Failed to parse duration value: %1").arg(durationStr));
+        QStringLiteral("Invalid duration value: %1").arg(durationStr));
     return;
   }
 
@@ -79,6 +96,11 @@ void DurationProbe::onProcessFinished(int exitCode,
 }
 
 void DurationProbe::onProcessError(QProcess::ProcessError error) {
+  if (errorEmitted_) {
+    return;
+  }
+  errorEmitted_ = true;
+
   QString message{};
 
   switch (error) {
@@ -107,7 +129,13 @@ void DurationProbe::onProcessError(QProcess::ProcessError error) {
 }
 
 QString DurationProbe::ffprobePath() {
-  return QCoreApplication::applicationDirPath() + QStringLiteral("/ffprobe");
+#ifdef Q_OS_WIN
+  return QDir(QCoreApplication::applicationDirPath())
+      .filePath(QStringLiteral("ffprobe.exe"));
+#else
+  return QDir(QCoreApplication::applicationDirPath())
+      .filePath(QStringLiteral("ffprobe"));
+#endif
 }
 
 } // namespace core::ffprobe

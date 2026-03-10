@@ -225,7 +225,11 @@ void MainWindow::setUiEnabled(bool enabled) {
   visualInput_->setEnabled(enabled);
   audioInput_->setEnabled(enabled);
   outputInput_->setEnabled(enabled);
-  generateButton_->setEnabled(enabled);
+  if (enabled) {
+    updateGenerateButton();
+  } else {
+    generateButton_->setEnabled(false);
+  }
 }
 
 } // namespace ui

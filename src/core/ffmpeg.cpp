@@ -1,6 +1,7 @@
 #include "core/ffmpeg.h"
 
 #include <QCoreApplication>
+#include <QDir>
 #include <QFile>
 #include <QFileInfo>
 
@@ -21,6 +22,13 @@ Renderer::Renderer(QObject *parent) : QObject(parent) {
 
 void Renderer::render(const QString &visualPath, const QString &audioPath,
                       const QString &outputPath, double audioDuration) {
+  if (process_.state() != QProcess::NotRunning) {
+    emit errorOccurred(QStringLiteral("Render already in progress"));
+    return;
+  }
+
+  errorEmitted_ = false;
+
   QString ffmpeg = ffmpegPath();
 
   if (!QFile::exists(ffmpeg)) {
@@ -53,16 +61,22 @@ void Renderer::render(const QString &visualPath, const QString &audioPath,
 
 void Renderer::onProcessFinished(int exitCode,
                                  QProcess::ExitStatus exitStatus) {
+  if (errorEmitted_) {
+    return;
+  }
+
   if (exitStatus == QProcess::CrashExit) {
+    errorEmitted_ = true;
     emit errorOccurred(QStringLiteral("ffmpeg process crashed"));
     return;
   }
 
   if (exitCode != 0) {
+    errorEmitted_ = true;
     QString stderrOutput = QString::fromUtf8(process_.readAllStandardError());
     emit errorOccurred(QStringLiteral("ffmpeg failed with exit code %1: %2")
                            .arg(exitCode)
-                           .arg(stderrOutput.left(500)));
+                           .arg(stderrOutput.right(500)));
     return;
   }
 
@@ -70,6 +84,11 @@ void Renderer::onProcessFinished(int exitCode,
 }
 
 void Renderer::onProcessError(QProcess::ProcessError error) {
+  if (errorEmitted_) {
+    return;
+  }
+  errorEmitted_ = true;
+
   QString message;
 
   switch (error) {
@@ -98,13 +117,20 @@ void Renderer::onProcessError(QProcess::ProcessError error) {
 }
 
 QString Renderer::ffmpegPath() {
-  return QCoreApplication::applicationDirPath() + QStringLiteral("/ffmpeg");
+#ifdef Q_OS_WIN
+  return QDir(QCoreApplication::applicationDirPath())
+      .filePath(QStringLiteral("ffmpeg.exe"));
+#else
+  return QDir(QCoreApplication::applicationDirPath())
+      .filePath(QStringLiteral("ffmpeg"));
+#endif
 }
 
 bool Renderer::isImageFile(const QString &path) {
   QString ext = QFileInfo(path).suffix().toLower();
   return ext == QStringLiteral("png") || ext == QStringLiteral("jpg") ||
-         ext == QStringLiteral("jpeg");
+         ext == QStringLiteral("jpeg") || ext == QStringLiteral("gif") ||
+         ext == QStringLiteral("bmp") || ext == QStringLiteral("webp");
 }
 
 // ffmpeg -loop 1 -framerate 1 -i image.png -i audio.mp3
