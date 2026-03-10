@@ -55,14 +55,20 @@ jobs:
       - name: Build
         run: cmake --build build --config ${{ env.BUILD_TYPE }}
 
-      - name: Deploy Qt
+      - name: Deploy Qt to build directory
+        shell: pwsh
+        run: |
+          # Deploy Qt DLLs to the build output directory (for CPack/NSIS)
+          windeployqt --release --no-translations --no-system-d3d-compiler --no-opengl-sw build/${{ env.BUILD_TYPE }}/TypeBeat.exe
+          # Copy FFmpeg binaries to build directory
+          Copy-Item ffmpeg.exe build/${{ env.BUILD_TYPE }}/
+          Copy-Item ffprobe.exe build/${{ env.BUILD_TYPE }}/
+
+      - name: Create portable distribution
         shell: pwsh
         run: |
           mkdir -p dist
-          Copy-Item build/${{ env.BUILD_TYPE }}/TypeBeat.exe dist/
-          Copy-Item ffmpeg.exe dist/
-          Copy-Item ffprobe.exe dist/
-          windeployqt --release --no-translations --no-system-d3d-compiler --no-opengl-sw dist/TypeBeat.exe
+          Copy-Item build/${{ env.BUILD_TYPE }}/* dist/ -Recurse
 
       - name: Install NSIS
         run: choco install nsis -y
