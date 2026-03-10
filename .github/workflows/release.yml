@@ -64,6 +64,9 @@ jobs:
           Copy-Item ffprobe.exe dist/
           windeployqt --release --no-translations --no-system-d3d-compiler --no-opengl-sw dist/type-beat.exe
 
+      - name: Install NSIS
+        run: choco install nsis -y
+
       - name: Create installer with CPack
         working-directory: build
         run: cpack -G NSIS -C ${{ env.BUILD_TYPE }}
