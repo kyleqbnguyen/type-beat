@@ -20,13 +20,13 @@
     </ul>
   </description>
   
-  <launchable type="desktop-id">type-beat.desktop</launchable>
+  <launchable type="desktop-id">TypeBeat.desktop</launchable>
   
   <url type="homepage">https://github.com/kyleqbnguyen/type-beat</url>
   <url type="bugtracker">https://github.com/kyleqbnguyen/type-beat/issues</url>
   
   <provides>
-    <binary>type-beat</binary>
+    <binary>TypeBeat</binary>
   </provides>
   
   <releases>

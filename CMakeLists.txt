@@ -44,7 +44,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ui core settings Qt6::Widgets
 if(APPLE)
   set_target_properties(
     ${PROJECT_NAME}
-    PROPERTIES MACOSX_BUNDLE TRUE
+    PROPERTIES OUTPUT_NAME "TypeBeat"
+               MACOSX_BUNDLE TRUE
                MACOSX_BUNDLE_BUNDLE_NAME "TypeBeat"
                MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
                MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
@@ -54,7 +55,13 @@ if(APPLE)
 endif()
 
 if(WIN32)
-  set_target_properties(${PROJECT_NAME} PROPERTIES WIN32_EXECUTABLE TRUE)
+  set_target_properties(${PROJECT_NAME} PROPERTIES 
+                        OUTPUT_NAME "TypeBeat"
+                        WIN32_EXECUTABLE TRUE)
+endif()
+
+if(UNIX AND NOT APPLE)
+  set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "TypeBeat")
 endif()
 
 include(GNUInstallDirs)
@@ -68,9 +75,9 @@ elseif(WIN32)
 else()
   # Linux: Standard FHS layout
   install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-  install(FILES packaging/linux/type-beat.desktop
+  install(FILES packaging/linux/TypeBeat.desktop
           DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications)
-  install(FILES packaging/linux/type-beat.png
+  install(FILES packaging/linux/TypeBeat.png
           DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/256x256/apps)
   install(FILES packaging/linux/com.typebeat.app.appdata.xml
           DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/metainfo)
@@ -94,9 +101,9 @@ if(WIN32)
   set(CPACK_NSIS_MUI_ICON "${CMAKE_SOURCE_DIR}/packaging/windows/TypeBeat.ico")
   set(CPACK_NSIS_MUI_UNIICON
       "${CMAKE_SOURCE_DIR}/packaging/windows/TypeBeat.ico")
-  set(CPACK_NSIS_INSTALLED_ICON_NAME "type-beat.exe")
+  set(CPACK_NSIS_INSTALLED_ICON_NAME "TypeBeat.exe")
   set(CPACK_NSIS_CREATE_ICONS_EXTRA
-      "CreateShortCut '$SMPROGRAMS\\\\$STARTMENU_FOLDER\\\\TypeBeat.lnk' '$INSTDIR\\\\type-beat.exe'"
+      "CreateShortCut '$SMPROGRAMS\\\\$STARTMENU_FOLDER\\\\TypeBeat.lnk' '$INSTDIR\\\\TypeBeat.exe'"
   )
   set(CPACK_NSIS_DELETE_ICONS_EXTRA
       "Delete '$SMPROGRAMS\\\\$START_MENU\\\\TypeBeat.lnk'")

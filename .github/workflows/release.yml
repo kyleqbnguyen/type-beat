@@ -59,10 +59,10 @@ jobs:
         shell: pwsh
         run: |
           mkdir -p dist
-          Copy-Item build/${{ env.BUILD_TYPE }}/type-beat.exe dist/
+          Copy-Item build/${{ env.BUILD_TYPE }}/TypeBeat.exe dist/
           Copy-Item ffmpeg.exe dist/
           Copy-Item ffprobe.exe dist/
-          windeployqt --release --no-translations --no-system-d3d-compiler --no-opengl-sw dist/type-beat.exe
+          windeployqt --release --no-translations --no-system-d3d-compiler --no-opengl-sw dist/TypeBeat.exe
 
       - name: Install NSIS
         run: choco install nsis -y
@@ -121,15 +121,15 @@ jobs:
       - name: Deploy Qt and bundle FFmpeg
         run: |
           # Copy FFmpeg binaries into the app bundle
-          cp ffmpeg "build/type-beat.app/Contents/MacOS/"
-          cp ffprobe "build/type-beat.app/Contents/MacOS/"
+          cp ffmpeg "build/TypeBeat.app/Contents/MacOS/"
+          cp ffprobe "build/TypeBeat.app/Contents/MacOS/"
           
           # Copy icon
-          mkdir -p "build/type-beat.app/Contents/Resources"
-          cp packaging/macos/TypeBeat.icns "build/type-beat.app/Contents/Resources/"
+          mkdir -p "build/TypeBeat.app/Contents/Resources"
+          cp packaging/macos/TypeBeat.icns "build/TypeBeat.app/Contents/Resources/"
           
           # Deploy Qt frameworks
-          macdeployqt build/type-beat.app -always-overwrite
+          macdeployqt build/TypeBeat.app -always-overwrite
 
       - name: Create DMG
         run: |
@@ -143,15 +143,15 @@ jobs:
             --window-pos 200 120 \
             --window-size 600 400 \
             --icon-size 100 \
-            --icon "type-beat.app" 150 185 \
-            --hide-extension "type-beat.app" \
+            --icon "TypeBeat.app" 150 185 \
+            --hide-extension "TypeBeat.app" \
             --app-drop-link 450 185 \
             "TypeBeat-${{ github.ref_name || inputs.version }}-macOS.dmg" \
-            "build/type-beat.app" || true
+            "build/TypeBeat.app" || true
           
           # If create-dmg fails, fall back to simple hdiutil
           if [ ! -f "TypeBeat-${{ github.ref_name || inputs.version }}-macOS.dmg" ]; then
-            hdiutil create -volname "TypeBeat" -srcfolder "build/type-beat.app" -ov -format UDZO "TypeBeat-${{ github.ref_name || inputs.version }}-macOS.dmg"
+            hdiutil create -volname "TypeBeat" -srcfolder "build/TypeBeat.app" -ov -format UDZO "TypeBeat-${{ github.ref_name || inputs.version }}-macOS.dmg"
           fi
 
       - name: Upload DMG
@@ -221,20 +221,20 @@ jobs:
           mkdir -p AppDir/usr/share/metainfo
           
           # Copy main executable
-          cp build/type-beat AppDir/usr/bin/
+          cp build/TypeBeat AppDir/usr/bin/
           
           # Copy FFmpeg binaries
           cp ffmpeg AppDir/usr/bin/
           cp ffprobe AppDir/usr/bin/
           
           # Copy desktop file and icons
-          cp packaging/linux/type-beat.desktop AppDir/usr/share/applications/
-          cp packaging/linux/type-beat.png AppDir/usr/share/icons/hicolor/256x256/apps/
+          cp packaging/linux/TypeBeat.desktop AppDir/usr/share/applications/
+          cp packaging/linux/TypeBeat.png AppDir/usr/share/icons/hicolor/256x256/apps/
           cp packaging/linux/com.typebeat.app.appdata.xml AppDir/usr/share/metainfo/
           
           # Create symlinks for linuxdeploy
-          ln -sf usr/share/applications/type-beat.desktop AppDir/
-          ln -sf usr/share/icons/hicolor/256x256/apps/type-beat.png AppDir/
+          ln -sf usr/share/applications/TypeBeat.desktop AppDir/
+          ln -sf usr/share/icons/hicolor/256x256/apps/TypeBeat.png AppDir/
 
       - name: Create AppImage
         env:

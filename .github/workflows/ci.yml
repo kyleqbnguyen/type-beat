@@ -67,7 +67,7 @@ jobs:
         with:
           name: build-${{ matrix.name }}
           path: |
-            build/type-beat
-            build/type-beat.exe
-            build/${{ env.BUILD_TYPE }}/type-beat.exe
-            build/type-beat.app
+            build/TypeBeat
+            build/TypeBeat.exe
+            build/${{ env.BUILD_TYPE }}/TypeBeat.exe
+            build/TypeBeat.app
