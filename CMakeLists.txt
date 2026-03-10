@@ -72,7 +72,7 @@ else()
           DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications)
   install(FILES packaging/linux/type-beat.png
           DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/256x256/apps)
-  install(FILES packaging/linux/type-beat.appdata.xml
+  install(FILES packaging/linux/com.typebeat.app.appdata.xml
           DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/metainfo)
 endif()
 

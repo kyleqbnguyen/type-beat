@@ -227,7 +227,7 @@ jobs:
           # Copy desktop file and icons
           cp packaging/linux/type-beat.desktop AppDir/usr/share/applications/
           cp packaging/linux/type-beat.png AppDir/usr/share/icons/hicolor/256x256/apps/
-          cp packaging/linux/type-beat.appdata.xml AppDir/usr/share/metainfo/
+          cp packaging/linux/com.typebeat.app.appdata.xml AppDir/usr/share/metainfo/
           
           # Create symlinks for linuxdeploy
           ln -sf usr/share/applications/type-beat.desktop AppDir/
