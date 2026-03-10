@@ -23,8 +23,10 @@ public:
 
 private slots:
   void onGenerateClicked();
-  void onDurationReady(double seconds);
-  void onDurationError(const QString &error);
+  void onAudioDurationReady(double seconds);
+  void onAudioDurationError(const QString &error);
+  void onVideoDurationReady(double seconds);
+  void onVideoDurationError(const QString &error);
   void onRenderFinished();
   void onRenderError(const QString &error);
   void updateGenerateButton();
@@ -33,6 +35,8 @@ private:
   void setupUi();
   void setStatus(const QString &message);
   void setUiEnabled(bool enabled);
+  void startRender(double videoDuration);
+  static bool isVideoFile(const QString &path);
 
   FileInput *visualInput_;
   FileInput *audioInput_;
@@ -48,6 +52,7 @@ private:
   QString pendingVisualPath_;
   QString pendingAudioPath_;
   QString pendingOutputPath_;
+  double pendingAudioDuration_;
 
   bool outputManuallyEdited_;
   bool settingOutputProgrammatically_;

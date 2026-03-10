@@ -13,7 +13,8 @@ public:
   explicit Renderer(QObject *parent = nullptr);
 
   void render(const QString &visualPath, const QString &audioPath,
-              const QString &outputPath, double audioDuration);
+              const QString &outputPath, double audioDuration,
+              double videoDuration = 0.0);
 
 signals:
   void finished();
@@ -32,7 +33,8 @@ private:
   QStringList buildVideoArgs(const QString &visualPath,
                              const QString &audioPath,
                              const QString &outputPath,
-                             double audioDuration) const;
+                             double audioDuration,
+                             double videoDuration) const;
 
   QProcess process_;
   bool errorEmitted_ = false;

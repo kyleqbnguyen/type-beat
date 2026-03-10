@@ -32,7 +32,8 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), visualInput_(nullptr), audioInput_(nullptr),
       outputInput_(nullptr), generateButton_(nullptr), statusLabel_(nullptr),
       progressBar_(nullptr), durationProbe_(nullptr), renderer_(nullptr),
-      outputManuallyEdited_(false), settingOutputProgrammatically_(false) {
+      pendingAudioDuration_(0.0), outputManuallyEdited_(false),
+      settingOutputProgrammatically_(false) {
   setupUi();
   setWindowTitle(tr("Type Beat Generator"));
   resize(windowWidth, windowHeight);
@@ -78,7 +79,7 @@ void MainWindow::setupUi() {
 
   progressBar_ = new QProgressBar(this);
   progressBar_->setMinimum(0);
-  progressBar_->setMaximum(0); // Indeterminate mode
+  progressBar_->setMaximum(0);
   progressBar_->setVisible(false);
   mainLayout->addWidget(progressBar_);
 
@@ -93,7 +94,6 @@ void MainWindow::setupUi() {
   connect(generateButton_, &QPushButton::clicked, this,
           &MainWindow::onGenerateClicked);
 
-  // Auto-generate output path when both inputs are valid
   auto updateOutputPath = [this]() {
     if (outputManuallyEdited_) {
       return;
@@ -113,7 +113,6 @@ void MainWindow::setupUi() {
   connect(visualInput_, &FileInput::pathChanged, this, updateOutputPath);
   connect(audioInput_, &FileInput::pathChanged, this, updateOutputPath);
 
-  // Track manual edits to output field
   connect(outputInput_, &FileInput::pathChanged, this, [this]() {
     if (!settingOutputProgrammatically_) {
       outputManuallyEdited_ = true;
@@ -121,8 +120,6 @@ void MainWindow::setupUi() {
   });
 
   updateGenerateButton();
-
-  // Trigger initial output path generation if both inputs are already set
   updateOutputPath();
 }
 
@@ -143,7 +140,6 @@ void MainWindow::onGenerateClicked() {
   pendingAudioPath_ = audioInput_->path();
   pendingOutputPath_ = outputInput_->path();
 
-  // Check if output file exists and prompt for overwrite
   if (QFileInfo::exists(pendingOutputPath_)) {
     QMessageBox::StandardButton reply = QMessageBox::question(
         this, tr("File Exists"),
@@ -155,7 +151,6 @@ void MainWindow::onGenerateClicked() {
     }
   }
 
-  // Save paths for next session
   settings_.setLastVisualPath(pendingVisualPath_);
   settings_.setLastAudioPath(pendingAudioPath_);
   settings_.setOutputDir(QFileInfo(pendingOutputPath_).absolutePath());
@@ -164,20 +159,62 @@ void MainWindow::onGenerateClicked() {
   setStatus(tr("Getting audio duration..."));
   progressBar_->setVisible(true);
 
-  // Create new probe for this operation
   durationProbe_ = new core::ffprobe::DurationProbe(this);
   connect(durationProbe_, &core::ffprobe::DurationProbe::durationReady, this,
-          &MainWindow::onDurationReady);
+          &MainWindow::onAudioDurationReady);
   connect(durationProbe_, &core::ffprobe::DurationProbe::errorOccurred, this,
-          &MainWindow::onDurationError);
+          &MainWindow::onAudioDurationError);
 
   durationProbe_->probe(pendingAudioPath_);
 }
 
-void MainWindow::onDurationReady(double seconds) {
+void MainWindow::onAudioDurationReady(double seconds) {
   durationProbe_->deleteLater();
   durationProbe_ = nullptr;
 
+  pendingAudioDuration_ = seconds;
+
+  if (isVideoFile(pendingVisualPath_)) {
+    setStatus(tr("Getting video duration..."));
+
+    durationProbe_ = new core::ffprobe::DurationProbe(this);
+    connect(durationProbe_, &core::ffprobe::DurationProbe::durationReady, this,
+            &MainWindow::onVideoDurationReady);
+    connect(durationProbe_, &core::ffprobe::DurationProbe::errorOccurred, this,
+            &MainWindow::onVideoDurationError);
+
+    durationProbe_->probe(pendingVisualPath_);
+  } else {
+    startRender(0.0);
+  }
+}
+
+void MainWindow::onAudioDurationError(const QString &error) {
+  durationProbe_->deleteLater();
+  durationProbe_ = nullptr;
+
+  setStatus(tr("Error: %1").arg(error));
+  progressBar_->setVisible(false);
+  setUiEnabled(true);
+}
+
+void MainWindow::onVideoDurationReady(double seconds) {
+  durationProbe_->deleteLater();
+  durationProbe_ = nullptr;
+
+  startRender(seconds);
+}
+
+void MainWindow::onVideoDurationError(const QString &error) {
+  durationProbe_->deleteLater();
+  durationProbe_ = nullptr;
+
+  setStatus(tr("Error: %1").arg(error));
+  progressBar_->setVisible(false);
+  setUiEnabled(true);
+}
+
+void MainWindow::startRender(double videoDuration) {
   setStatus(tr("Rendering video..."));
 
   renderer_ = new core::ffmpeg::Renderer(this);
@@ -187,16 +224,7 @@ void MainWindow::onDurationReady(double seconds) {
           &MainWindow::onRenderError);
 
   renderer_->render(pendingVisualPath_, pendingAudioPath_, pendingOutputPath_,
-                    seconds);
-}
-
-void MainWindow::onDurationError(const QString &error) {
-  durationProbe_->deleteLater();
-  durationProbe_ = nullptr;
-
-  setStatus(tr("Error: %1").arg(error));
-  progressBar_->setVisible(false);
-  setUiEnabled(true);
+                    pendingAudioDuration_, videoDuration);
 }
 
 void MainWindow::onRenderFinished() {
@@ -230,6 +258,13 @@ void MainWindow::setUiEnabled(bool enabled) {
   } else {
     generateButton_->setEnabled(false);
   }
+}
+
+bool MainWindow::isVideoFile(const QString &path) {
+  QString ext = QFileInfo(path).suffix().toLower();
+  return ext == QStringLiteral("mp4") || ext == QStringLiteral("mov") ||
+         ext == QStringLiteral("avi") || ext == QStringLiteral("mkv") ||
+         ext == QStringLiteral("webm");
 }
 
 } // namespace ui
