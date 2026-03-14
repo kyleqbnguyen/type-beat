@@ -3,6 +3,7 @@
 Combine visuals with audio to create videos.
 
 ## Demo
+https://github.com/user-attachments/assets/db6dc716-caf1-459c-be69-d0699c532574
 
 ## Download
 
