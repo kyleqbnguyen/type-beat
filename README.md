@@ -1,6 +1,6 @@
 # TypeBeat
 
-Combine visuals with audio to create videos.
+A desktop app that combines visuals (png, jpg, jpeg, mp4, mov) w/ audio files (mp4, wav) to quickly create "Type Beat" style videos for youtube without watermarks.
 
 ## Demo
 https://github.com/user-attachments/assets/db6dc716-caf1-459c-be69-d0699c532574
