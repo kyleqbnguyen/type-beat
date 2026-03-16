@@ -71,6 +71,35 @@ if(APPLE)
 elseif(WIN32)
   # Windows: Install executable to bin/
   install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION .)
+
+  # Install Qt runtime DLLs, FFmpeg binaries, and Qt plugin directories
+  # deployed by windeployqt alongside the executable during CI builds.
+  install(
+    CODE "
+    # Install all DLLs (Qt6Core.dll, Qt6Widgets.dll, Qt6Gui.dll, etc.)
+    file(GLOB _deploy_dlls
+         \"${CMAKE_BINARY_DIR}/\${CMAKE_INSTALL_CONFIG_NAME}/*.dll\")
+    foreach(_dll \${_deploy_dlls})
+      file(INSTALL \${_dll} DESTINATION \"\${CMAKE_INSTALL_PREFIX}\")
+    endforeach()
+
+    # Install FFmpeg binaries (ffmpeg.exe, ffprobe.exe)
+    file(GLOB _deploy_exes
+         \"${CMAKE_BINARY_DIR}/\${CMAKE_INSTALL_CONFIG_NAME}/ff*.exe\")
+    foreach(_exe \${_deploy_exes})
+      file(INSTALL \${_exe} DESTINATION \"\${CMAKE_INSTALL_PREFIX}\")
+    endforeach()
+
+    # Install Qt plugin directories (platforms, styles, imageformats, etc.)
+    foreach(_dir platforms styles imageformats tls networkinformation)
+      if(IS_DIRECTORY
+         \"${CMAKE_BINARY_DIR}/\${CMAKE_INSTALL_CONFIG_NAME}/\${_dir}\")
+        file(INSTALL
+             \"${CMAKE_BINARY_DIR}/\${CMAKE_INSTALL_CONFIG_NAME}/\${_dir}\"
+             DESTINATION \"\${CMAKE_INSTALL_PREFIX}\")
+      endif()
+    endforeach()
+  ")
 else()
   # Linux: Standard FHS layout
   install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
