@@ -60,7 +60,6 @@ jobs:
         run: |
           # Deploy Qt DLLs to the build output directory (for CPack/NSIS)
           windeployqt --release --no-translations --no-system-d3d-compiler --no-opengl-sw build/${{ env.BUILD_TYPE }}/TypeBeat.exe
-          # Copy FFmpeg binaries to build directory
           Copy-Item ffmpeg.exe build/${{ env.BUILD_TYPE }}/
           Copy-Item ffprobe.exe build/${{ env.BUILD_TYPE }}/
 
@@ -107,7 +106,6 @@ jobs:
 
       - name: Download FFmpeg
         run: |
-          # Download ffmpeg and ffprobe from evermeet.cx
           curl -L -o ffmpeg.7z "https://evermeet.cx/ffmpeg/getrelease/ffmpeg/7z"
           curl -L -o ffprobe.7z "https://evermeet.cx/ffmpeg/getrelease/ffprobe/7z"
           7z x ffmpeg.7z
@@ -126,23 +124,18 @@ jobs:
 
       - name: Deploy Qt and bundle FFmpeg
         run: |
-          # Copy FFmpeg binaries into the app bundle
           cp ffmpeg "build/TypeBeat.app/Contents/MacOS/"
           cp ffprobe "build/TypeBeat.app/Contents/MacOS/"
           
-          # Copy icon
           mkdir -p "build/TypeBeat.app/Contents/Resources"
           cp packaging/macos/TypeBeat.icns "build/TypeBeat.app/Contents/Resources/"
           
-          # Deploy Qt frameworks
           macdeployqt build/TypeBeat.app -always-overwrite
 
       - name: Create DMG
         run: |
-          # Install create-dmg
           brew install create-dmg
           
-          # Create DMG
           create-dmg \
             --volname "TypeBeat" \
             --volicon "packaging/macos/TypeBeat.icns" \
@@ -226,14 +219,11 @@ jobs:
           mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
           mkdir -p AppDir/usr/share/metainfo
           
-          # Copy main executable
           cp build/TypeBeat AppDir/usr/bin/
           
-          # Copy FFmpeg binaries
           cp ffmpeg AppDir/usr/bin/
           cp ffprobe AppDir/usr/bin/
           
-          # Copy desktop file and icons
           cp packaging/linux/TypeBeat.desktop AppDir/usr/share/applications/
           cp packaging/linux/TypeBeat.png AppDir/usr/share/icons/hicolor/256x256/apps/
           cp packaging/linux/com.typebeat.app.appdata.xml AppDir/usr/share/metainfo/

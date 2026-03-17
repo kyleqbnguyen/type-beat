@@ -36,9 +36,16 @@ add_library(ui OBJECT src/ui/file_input.cpp src/ui/main_window.cpp)
 target_include_directories(ui PUBLIC ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(ui PUBLIC Qt6::Widgets Qt6::Core core settings)
 
-add_executable(${PROJECT_NAME} src/main.cpp)
+qt_add_resources(APP_RESOURCES resources.qrc)
+
+add_executable(${PROJECT_NAME} src/main.cpp ${APP_RESOURCES})
 target_link_libraries(${PROJECT_NAME} PRIVATE ui core settings Qt6::Widgets
                                               Qt6::Core)
+
+if(WIN32)
+  target_sources(${PROJECT_NAME}
+                 PRIVATE "${CMAKE_SOURCE_DIR}/packaging/windows/TypeBeat.rc")
+endif()
 
 if(APPLE)
   set_target_properties(
@@ -66,10 +73,8 @@ endif()
 include(GNUInstallDirs)
 
 if(APPLE)
-  # macOS: Install the .app bundle
   install(TARGETS ${PROJECT_NAME} BUNDLE DESTINATION .)
 elseif(WIN32)
-  # Windows: Install executable to bin/
   install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION .)
 
   # Install Qt runtime DLLs, FFmpeg binaries, and Qt plugin directories
@@ -83,7 +88,6 @@ elseif(WIN32)
       file(INSTALL \${_dll} DESTINATION \"\${CMAKE_INSTALL_PREFIX}\")
     endforeach()
 
-    # Install FFmpeg binaries (ffmpeg.exe, ffprobe.exe)
     file(GLOB _deploy_exes
          \"${CMAKE_BINARY_DIR}/\${CMAKE_INSTALL_CONFIG_NAME}/ff*.exe\")
     foreach(_exe \${_deploy_exes})
@@ -101,7 +105,6 @@ elseif(WIN32)
     endforeach()
   ")
 else()
-  # Linux: Standard FHS layout
   install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
   install(FILES packaging/linux/TypeBeat.desktop
           DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications)
