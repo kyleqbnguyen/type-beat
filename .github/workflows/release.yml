@@ -42,8 +42,15 @@ jobs:
         run: |
           $ffmpegUrl = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
           Invoke-WebRequest -Uri $ffmpegUrl -OutFile ffmpeg.zip
+          # Verify checksum - update this hash when upgrading FFmpeg
+          $expectedHash = Get-Content -Path packaging/checksums/ffmpeg-windows.sha256
+          $actualHash = (Get-FileHash -Path ffmpeg.zip -Algorithm SHA256).Hash.ToLower()
+          if ($actualHash -ne $expectedHash.Trim()) {
+            Write-Error "FFmpeg checksum mismatch! Expected: $expectedHash Got: $actualHash"
+            exit 1
+          }
+          Write-Output "FFmpeg checksum verified: $actualHash"
           Expand-Archive -Path ffmpeg.zip -DestinationPath ffmpeg-temp
-          # Find the extracted directory (name includes version)
           $ffmpegDir = Get-ChildItem -Path ffmpeg-temp -Directory | Select-Object -First 1
           Move-Item -Path "$($ffmpegDir.FullName)/bin/ffmpeg.exe" -Destination ffmpeg.exe
           Move-Item -Path "$($ffmpegDir.FullName)/bin/ffprobe.exe" -Destination ffprobe.exe
@@ -108,6 +115,9 @@ jobs:
         run: |
           curl -L -o ffmpeg.7z "https://evermeet.cx/ffmpeg/getrelease/ffmpeg/7z"
           curl -L -o ffprobe.7z "https://evermeet.cx/ffmpeg/getrelease/ffprobe/7z"
+          # Verify checksums - update these hashes when upgrading FFmpeg
+          echo "$(cat packaging/checksums/ffmpeg-macos.sha256)  ffmpeg.7z" | shasum -a 256 -c -
+          echo "$(cat packaging/checksums/ffprobe-macos.sha256)  ffprobe.7z" | shasum -a 256 -c -
           7z x ffmpeg.7z
           7z x ffprobe.7z
           chmod +x ffmpeg ffprobe
@@ -194,6 +204,8 @@ jobs:
       - name: Download FFmpeg
         run: |
           curl -L -o ffmpeg.tar.xz "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz"
+          # Verify checksum - update this hash when upgrading FFmpeg
+          echo "$(cat packaging/checksums/ffmpeg-linux.sha256)  ffmpeg.tar.xz" | shasum -a 256 -c -
           tar xf ffmpeg.tar.xz
           mv ffmpeg-*-amd64-static/ffmpeg .
           mv ffmpeg-*-amd64-static/ffprobe .

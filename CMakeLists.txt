@@ -22,10 +22,17 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   add_compile_options(/W4 /WX /permissive-)
 endif()
 
+# Generate version header from CMake project version
+configure_file(
+  ${CMAKE_SOURCE_DIR}/src/version.h.in
+  ${CMAKE_BINARY_DIR}/generated/version.h
+  @ONLY)
+
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets)
 
 add_library(core OBJECT src/core/file_utils.cpp src/core/ffmpeg.cpp)
-target_include_directories(core PUBLIC ${CMAKE_SOURCE_DIR}/src)
+target_include_directories(core PUBLIC ${CMAKE_SOURCE_DIR}/src
+                                       ${CMAKE_BINARY_DIR}/generated)
 target_link_libraries(core PUBLIC Qt6::Core)
 
 add_library(settings OBJECT src/settings/app_settings.cpp)
@@ -33,7 +40,8 @@ target_include_directories(settings PUBLIC ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(settings PUBLIC Qt6::Core)
 
 add_library(ui OBJECT src/ui/file_input.cpp src/ui/main_window.cpp)
-target_include_directories(ui PUBLIC ${CMAKE_SOURCE_DIR}/src)
+target_include_directories(ui PUBLIC ${CMAKE_SOURCE_DIR}/src
+                                     ${CMAKE_BINARY_DIR}/generated)
 target_link_libraries(ui PUBLIC Qt6::Widgets Qt6::Core core settings)
 
 qt_add_resources(APP_RESOURCES resources.qrc)
@@ -147,3 +155,30 @@ else()
 endif()
 
 include(CPack)
+
+# Testing
+option(BUILD_TESTING "Build unit tests" OFF)
+
+if(BUILD_TESTING)
+  enable_testing()
+  include(FetchContent)
+
+  FetchContent_Declare(
+    googletest
+    GIT_REPOSITORY https://github.com/google/googletest.git
+    GIT_TAG v1.14.0)
+
+  FetchContent_MakeAvailable(googletest)
+
+  add_executable(
+    typebeat_tests
+    tests/test_file_utils.cpp
+    tests/test_ffmpeg_args.cpp)
+
+  target_include_directories(typebeat_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+  target_link_libraries(typebeat_tests PRIVATE core settings Qt6::Core
+                                               GTest::gtest_main)
+
+  include(GoogleTest)
+  gtest_discover_tests(typebeat_tests)
+endif()

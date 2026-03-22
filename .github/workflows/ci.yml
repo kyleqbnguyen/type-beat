@@ -11,6 +11,67 @@ env:
   BUILD_TYPE: Release
 
 jobs:
+  lint:
+    runs-on: ubuntu-22.04
+    name: Lint
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check formatting
+        run: |
+          find src -name '*.cpp' -o -name '*.h' | \
+            xargs clang-format --dry-run --Werror
+
+      - name: Install Qt (for clang-tidy headers)
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: ${{ env.QT_VERSION }}
+          cache: true
+
+      - name: Run clang-tidy
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          clang-tidy -p build $(find src -name '*.cpp')
+
+  test:
+    runs-on: ubuntu-22.04
+    name: Test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libxcb-cursor0 \
+            libxkbcommon-x11-0 \
+            libxcb-icccm4 \
+            libxcb-image0 \
+            libxcb-keysyms1 \
+            libxcb-randr0 \
+            libxcb-render-util0 \
+            libxcb-shape0
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: ${{ env.QT_VERSION }}
+          cache: true
+
+      - name: Configure CMake
+        run: cmake -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DBUILD_TESTING=ON
+
+      - name: Build
+        run: cmake --build build --config ${{ env.BUILD_TYPE }}
+
+      - name: Run tests
+        working-directory: build
+        run: ctest --output-on-failure -C ${{ env.BUILD_TYPE }}
+
   build:
     strategy:
       fail-fast: false

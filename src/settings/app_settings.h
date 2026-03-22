@@ -17,6 +17,11 @@ public:
   QString lastAudioPath() const;
   void setLastAudioPath(const QString &path);
 
+  QByteArray windowGeometry() const;
+  void setWindowGeometry(const QByteArray &geometry);
+
+  void resetToDefaults();
+
 private:
   static QString defaultOutputDir();
 };

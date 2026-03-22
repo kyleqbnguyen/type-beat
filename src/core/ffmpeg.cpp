@@ -4,6 +4,10 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QLoggingCategory>
+#include <QRegularExpression>
+
+Q_LOGGING_CATEGORY(lcRenderer, "typebeat.renderer")
 
 namespace core::ffmpeg {
 
@@ -18,6 +22,19 @@ const QString scaleFilter =
 Renderer::Renderer(QObject *parent) : QObject(parent) {
   connect(&process_, &QProcess::finished, this, &Renderer::onProcessFinished);
   connect(&process_, &QProcess::errorOccurred, this, &Renderer::onProcessError);
+  connect(&process_, &QProcess::readyReadStandardError, this,
+          &Renderer::onReadyReadStderr);
+  process_.setProcessChannelMode(QProcess::MergedChannels);
+  process_.setReadChannel(QProcess::StandardOutput);
+}
+
+Renderer::~Renderer() {
+  if (process_.state() != QProcess::NotRunning) {
+    qCWarning(lcRenderer) << "Renderer destroyed while process running, "
+                             "killing FFmpeg";
+    process_.kill();
+    process_.waitForFinished(3000);
+  }
 }
 
 void Renderer::render(const QString &visualPath, const QString &audioPath,
@@ -28,6 +45,9 @@ void Renderer::render(const QString &visualPath, const QString &audioPath,
   }
 
   errorEmitted_ = false;
+  cancelled_ = false;
+  durationSeconds_ = 0.0;
+  fullStderr_.clear();
 
   QString ffmpeg = ffmpegPath();
 
@@ -48,7 +68,7 @@ void Renderer::render(const QString &visualPath, const QString &audioPath,
     return;
   }
 
-  QStringList args{};
+  QStringList args;
 
   if (isImageFile(visualPath)) {
     args = buildImageArgs(visualPath, audioPath, outputPath);
@@ -56,30 +76,90 @@ void Renderer::render(const QString &visualPath, const QString &audioPath,
     args = buildVideoArgs(visualPath, audioPath, outputPath);
   }
 
+  qCInfo(lcRenderer) << "Starting FFmpeg:" << ffmpeg << args.join(' ');
+
+  // Use stderr for progress since we merged channels; FFmpeg writes
+  // progress to stderr by default but we read via readyRead on merged
+  // stdout channel.
+  process_.setProcessChannelMode(QProcess::SeparateChannels);
   process_.start(ffmpeg, args);
+}
+
+void Renderer::cancel() {
+  if (process_.state() == QProcess::NotRunning) {
+    return;
+  }
+  cancelled_ = true;
+  qCInfo(lcRenderer) << "Cancelling render";
+  process_.terminate();
+  if (!process_.waitForFinished(5000)) {
+    qCWarning(lcRenderer) << "FFmpeg did not terminate gracefully, killing";
+    process_.kill();
+    process_.waitForFinished(3000);
+  }
+}
+
+bool Renderer::isRunning() const {
+  return process_.state() != QProcess::NotRunning;
+}
+
+void Renderer::onReadyReadStderr() {
+  QString output = QString::fromUtf8(process_.readAllStandardError());
+  fullStderr_.append(output);
+
+  // Parse duration from initial FFmpeg output (e.g. "Duration: 00:03:45.12")
+  if (durationSeconds_ <= 0.0) {
+    double dur = parseDuration(fullStderr_);
+    if (dur > 0.0) {
+      durationSeconds_ = dur;
+    }
+  }
+
+  // Parse current time progress (e.g. "time=00:01:23.45")
+  if (durationSeconds_ > 0.0) {
+    double currentTime = parseTime(output);
+    if (currentTime >= 0.0) {
+      int percent = static_cast<int>((currentTime / durationSeconds_) * 100.0);
+      if (percent > 100) {
+        percent = 100;
+      }
+      emit progressUpdated(percent);
+    }
+  }
 }
 
 void Renderer::onProcessFinished(int exitCode,
                                  QProcess::ExitStatus exitStatus) {
+  // Collect any remaining stderr
+  fullStderr_.append(QString::fromUtf8(process_.readAllStandardError()));
+
   if (errorEmitted_) {
+    return;
+  }
+
+  if (cancelled_) {
+    errorEmitted_ = true;
+    emit errorOccurred(QStringLiteral("Render cancelled"));
     return;
   }
 
   if (exitStatus == QProcess::CrashExit) {
     errorEmitted_ = true;
+    qCWarning(lcRenderer) << "FFmpeg crashed. Full output:" << fullStderr_;
     emit errorOccurred(QStringLiteral("ffmpeg process crashed"));
     return;
   }
 
   if (exitCode != 0) {
     errorEmitted_ = true;
-    QString stderrOutput = QString::fromUtf8(process_.readAllStandardError());
-    emit errorOccurred(QStringLiteral("ffmpeg failed with exit code %1: %2")
-                           .arg(exitCode)
-                           .arg(stderrOutput.right(500)));
+    qCWarning(lcRenderer) << "FFmpeg failed with exit code" << exitCode
+                          << "Full output:" << fullStderr_;
+    emit errorOccurred(
+        QStringLiteral("ffmpeg failed (exit code %1)").arg(exitCode));
     return;
   }
 
+  qCInfo(lcRenderer) << "Render completed successfully";
   emit finished();
 }
 
@@ -96,7 +176,11 @@ void Renderer::onProcessError(QProcess::ProcessError error) {
     message = QStringLiteral("Failed to start ffmpeg");
     break;
   case QProcess::Crashed:
-    message = QStringLiteral("ffmpeg process crashed");
+    if (cancelled_) {
+      message = QStringLiteral("Render cancelled");
+    } else {
+      message = QStringLiteral("ffmpeg process crashed");
+    }
     break;
   case QProcess::Timedout:
     message = QStringLiteral("ffmpeg process timed out");
@@ -113,7 +197,39 @@ void Renderer::onProcessError(QProcess::ProcessError error) {
     break;
   }
 
+  qCWarning(lcRenderer) << "FFmpeg error:" << message;
   emit errorOccurred(message);
+}
+
+double Renderer::parseDuration(const QString &output) {
+  static const QRegularExpression re(
+      QStringLiteral(R"(Duration:\s*(\d{2}):(\d{2}):(\d{2})\.(\d{2}))"));
+  auto match = re.match(output);
+  if (!match.hasMatch()) {
+    return -1.0;
+  }
+  double hours = match.captured(1).toDouble();
+  double minutes = match.captured(2).toDouble();
+  double seconds = match.captured(3).toDouble();
+  double centis = match.captured(4).toDouble();
+  return hours * 3600.0 + minutes * 60.0 + seconds + centis / 100.0;
+}
+
+double Renderer::parseTime(const QString &line) {
+  static const QRegularExpression re(
+      QStringLiteral(R"(time=(\d{2}):(\d{2}):(\d{2})\.(\d{2}))"));
+  // Find the last match in case there are multiple time= in one chunk
+  double lastTime = -1.0;
+  auto it = re.globalMatch(line);
+  while (it.hasNext()) {
+    auto match = it.next();
+    double hours = match.captured(1).toDouble();
+    double minutes = match.captured(2).toDouble();
+    double seconds = match.captured(3).toDouble();
+    double centis = match.captured(4).toDouble();
+    lastTime = hours * 3600.0 + minutes * 60.0 + seconds + centis / 100.0;
+  }
+  return lastTime;
 }
 
 QString Renderer::ffmpegPath() {

@@ -11,17 +11,22 @@ class Renderer : public QObject {
 
 public:
   explicit Renderer(QObject *parent = nullptr);
+  ~Renderer() override;
 
   void render(const QString &visualPath, const QString &audioPath,
               const QString &outputPath);
+  void cancel();
+  [[nodiscard]] bool isRunning() const;
 
 signals:
   void finished();
   void errorOccurred(const QString &errorMessage);
+  void progressUpdated(int percent);
 
 private slots:
   void onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus);
   void onProcessError(QProcess::ProcessError error);
+  void onReadyReadStderr();
 
 private:
   static QString ffmpegPath();
@@ -32,9 +37,14 @@ private:
   QStringList buildVideoArgs(const QString &visualPath,
                              const QString &audioPath,
                              const QString &outputPath) const;
+  static double parseDuration(const QString &output);
+  static double parseTime(const QString &line);
 
   QProcess process_;
   bool errorEmitted_ = false;
+  bool cancelled_ = false;
+  double durationSeconds_ = 0.0;
+  QString fullStderr_;
 };
 
 } // namespace core::ffmpeg

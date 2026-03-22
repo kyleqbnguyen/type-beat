@@ -2,10 +2,14 @@
 
 #include <QDir>
 #include <QFileInfo>
+#include <QLoggingCategory>
+
+Q_LOGGING_CATEGORY(lcFileUtils, "typebeat.fileutils")
 
 namespace core::file {
 
-QString generateOutputPath(const QString &audioPath, const QString &outputDir) {
+OutputPathResult generateOutputPath(const QString &audioPath,
+                                    const QString &outputDir) {
   QFileInfo audioInfo(audioPath);
   QString baseName = audioInfo.completeBaseName();
   QString outputName = baseName + QStringLiteral("_type_beat");
@@ -14,7 +18,10 @@ QString generateOutputPath(const QString &audioPath, const QString &outputDir) {
 
   if (!dir.exists()) {
     if (!dir.mkpath(QStringLiteral("."))) {
-      return QString();
+      QString err = QStringLiteral("Failed to create output directory: %1")
+                        .arg(outputDir);
+      qCWarning(lcFileUtils) << err;
+      return {QString(), err};
     }
   }
 
@@ -29,10 +36,13 @@ QString generateOutputPath(const QString &audioPath, const QString &outputDir) {
   }
 
   if (counter >= maxAttempts) {
-    return QString();
+    QString err = QStringLiteral("Too many files with name '%1' in %2")
+                      .arg(outputName, outputDir);
+    qCWarning(lcFileUtils) << err;
+    return {QString(), err};
   }
 
-  return outputPath;
+  return {outputPath, QString()};
 }
 
 } // namespace core::file
