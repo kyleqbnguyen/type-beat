@@ -78,9 +78,6 @@ void Renderer::render(const QString &visualPath, const QString &audioPath,
 
   qCInfo(lcRenderer) << "Starting FFmpeg:" << ffmpeg << args.join(' ');
 
-  // Use stderr for progress since we merged channels; FFmpeg writes
-  // progress to stderr by default but we read via readyRead on merged
-  // stdout channel.
   process_.setProcessChannelMode(QProcess::SeparateChannels);
   process_.start(ffmpeg, args);
 }
@@ -107,7 +104,6 @@ void Renderer::onReadyReadStderr() {
   QString output = QString::fromUtf8(process_.readAllStandardError());
   fullStderr_.append(output);
 
-  // Parse duration from initial FFmpeg output (e.g. "Duration: 00:03:45.12")
   if (durationSeconds_ <= 0.0) {
     double dur = parseDuration(fullStderr_);
     if (dur > 0.0) {
@@ -115,7 +111,6 @@ void Renderer::onReadyReadStderr() {
     }
   }
 
-  // Parse current time progress (e.g. "time=00:01:23.45")
   if (durationSeconds_ > 0.0) {
     double currentTime = parseTime(output);
     if (currentTime >= 0.0) {
@@ -130,7 +125,6 @@ void Renderer::onReadyReadStderr() {
 
 void Renderer::onProcessFinished(int exitCode,
                                  QProcess::ExitStatus exitStatus) {
-  // Collect any remaining stderr
   fullStderr_.append(QString::fromUtf8(process_.readAllStandardError()));
 
   if (errorEmitted_) {
@@ -204,21 +198,25 @@ void Renderer::onProcessError(QProcess::ProcessError error) {
 double Renderer::parseDuration(const QString &output) {
   static const QRegularExpression re(
       QStringLiteral(R"(Duration:\s*(\d{2}):(\d{2}):(\d{2})\.(\d{2}))"));
-  auto match = re.match(output);
-  if (!match.hasMatch()) {
-    return -1.0;
+  double maxDuration = -1.0;
+  auto it = re.globalMatch(output);
+  while (it.hasNext()) {
+    auto match = it.next();
+    double hours = match.captured(1).toDouble();
+    double minutes = match.captured(2).toDouble();
+    double seconds = match.captured(3).toDouble();
+    double centis = match.captured(4).toDouble();
+    double dur = hours * 3600.0 + minutes * 60.0 + seconds + centis / 100.0;
+    if (dur > maxDuration) {
+      maxDuration = dur;
+    }
   }
-  double hours = match.captured(1).toDouble();
-  double minutes = match.captured(2).toDouble();
-  double seconds = match.captured(3).toDouble();
-  double centis = match.captured(4).toDouble();
-  return hours * 3600.0 + minutes * 60.0 + seconds + centis / 100.0;
+  return maxDuration;
 }
 
 double Renderer::parseTime(const QString &line) {
   static const QRegularExpression re(
       QStringLiteral(R"(time=(\d{2}):(\d{2}):(\d{2})\.(\d{2}))"));
-  // Find the last match in case there are multiple time= in one chunk
   double lastTime = -1.0;
   auto it = re.globalMatch(line);
   while (it.hasNext()) {

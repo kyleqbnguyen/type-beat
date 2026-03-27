@@ -51,7 +51,7 @@ const QString roundedButtonStyle =
                    " color: palette(mid);"
                    " background-color: #a4a4a4;"
                    "}");
-constexpr qint64 minDiskSpaceBytes = 1073741824; // 1 GB
+constexpr qint64 minDiskSpaceBytes = 1073741824;
 
 } // namespace
 
@@ -68,7 +68,6 @@ MainWindow::MainWindow(QWidget *parent)
   setMinimumSize(qMax(windowMinWidth, minSizeHint.width()),
                  qMax(windowMinHeight, minSizeHint.height()));
 
-  // Restore saved window geometry
   QByteArray savedGeometry = settings_.windowGeometry();
   if (!savedGeometry.isEmpty()) {
     restoreGeometry(savedGeometry);
@@ -151,7 +150,6 @@ void MainWindow::setupUi() {
 
   mainLayout->addSpacing(buttonTopSpacing);
 
-  // Button row with Generate, Cancel, and Open Folder
   auto *buttonLayout = new QHBoxLayout();
 
   generateButton_ = new QPushButton(tr("Generate"), this);
@@ -342,7 +340,6 @@ void MainWindow::onRenderError(const QString &error) {
   cancelButton_->setEnabled(true);
   setUiEnabled(true);
 
-  // Show detailed error dialog for non-cancellation errors
   if (!error.contains(QStringLiteral("cancel"), Qt::CaseInsensitive)) {
     QString details = renderer_.property("fullStderr").toString();
     QMessageBox msgBox(this);
