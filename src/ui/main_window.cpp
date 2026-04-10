@@ -3,8 +3,10 @@
 #include "core/file_utils.h"
 
 #include <QDesktopServices>
+#include <QFile>
 #include <QFileInfo>
 #include <QFormLayout>
+#include <QHBoxLayout>
 #include <QLoggingCategory>
 #include <QMenuBar>
 #include <QMessageBox>
@@ -26,8 +28,8 @@ const QString visualFilter =
 const QString audioFilter = QStringLiteral("Audio (*.mp3 *.wav)");
 const QString outputFilter = QStringLiteral("Video (*.mp4)");
 
-constexpr int windowMinWidth = 550;
-constexpr int windowMinHeight = 240;
+constexpr int windowMinWidth = 680;
+constexpr int windowMinHeight = 620;
 constexpr int windowMargin = 24;
 constexpr int formRowSpacing = 16;
 constexpr int buttonTopSpacing = 24;
@@ -57,12 +59,14 @@ constexpr qint64 minDiskSpaceBytes = 1073741824;
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), visualInput_(nullptr), audioInput_(nullptr),
-      outputInput_(nullptr), generateButton_(nullptr), cancelButton_(nullptr),
+      outputInput_(nullptr), presetCombo_(nullptr), previewWidget_(nullptr),
+      generateButton_(nullptr), cancelButton_(nullptr),
       openFolderButton_(nullptr), statusLabel_(nullptr), progressBar_(nullptr),
-      renderer_(this), outputManuallyEdited_(false),
-      settingOutputProgrammatically_(false) {
+      renderer_(this), previewRenderer_(this), currentJob_(JobKind::None),
+      outputManuallyEdited_(false), settingOutputProgrammatically_(false) {
   setupUi();
   setupMenuBar();
+  loadQualitySettings();
   setWindowTitle(tr("Type Beat Generator"));
   const QSize minSizeHint = minimumSizeHint();
   setMinimumSize(qMax(windowMinWidth, minSizeHint.width()),
@@ -80,10 +84,13 @@ MainWindow::~MainWindow() {
   if (renderer_.isRunning()) {
     renderer_.cancel();
   }
+  if (previewRenderer_.isRunning()) {
+    previewRenderer_.cancel();
+  }
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) {
-  if (renderer_.isRunning()) {
+  if (renderer_.isRunning() || previewRenderer_.isRunning()) {
     QMessageBox::StandardButton reply = QMessageBox::question(
         this, tr("Render In Progress"),
         tr("A render is in progress. Cancel and close?"),
@@ -92,7 +99,12 @@ void MainWindow::closeEvent(QCloseEvent *event) {
       event->ignore();
       return;
     }
-    renderer_.cancel();
+    if (renderer_.isRunning()) {
+      renderer_.cancel();
+    }
+    if (previewRenderer_.isRunning()) {
+      previewRenderer_.cancel();
+    }
   }
   settings_.setWindowGeometry(saveGeometry());
   event->accept();
@@ -147,6 +159,9 @@ void MainWindow::setupUi() {
 
   mainLayout->addLayout(formLayout);
 
+  setupQualitySection(mainLayout);
+  setupPreviewSection(mainLayout);
+
   mainLayout->addSpacing(buttonTopSpacing);
 
   auto *buttonLayout = new QHBoxLayout();
@@ -200,6 +215,11 @@ void MainWindow::setupUi() {
           &MainWindow::updateGenerateButton);
   connect(outputInput_, &FileInput::pathChanged, this,
           &MainWindow::updateGenerateButton);
+  connect(visualInput_, &FileInput::pathChanged, this,
+          &MainWindow::markPreviewStale);
+  connect(audioInput_, &FileInput::pathChanged, this,
+          &MainWindow::markPreviewStale);
+
   connect(generateButton_, &QPushButton::clicked, this,
           &MainWindow::onGenerateClicked);
   connect(cancelButton_, &QPushButton::clicked, this,
@@ -213,6 +233,22 @@ void MainWindow::setupUi() {
           &MainWindow::onRenderError);
   connect(&renderer_, &core::ffmpeg::Renderer::progressUpdated, this,
           &MainWindow::onProgressUpdated);
+  connect(&renderer_, &core::ffmpeg::Renderer::finalizing, this, [this]() {
+    progressBar_->setRange(0, 0);
+    setStatus(tr("Finalizing video..."));
+  });
+
+  connect(&previewRenderer_, &core::ffmpeg::Renderer::finished, this,
+          &MainWindow::onPreviewFinished);
+  connect(&previewRenderer_, &core::ffmpeg::Renderer::errorOccurred, this,
+          &MainWindow::onPreviewError);
+  connect(&previewRenderer_, &core::ffmpeg::Renderer::progressUpdated, this,
+          &MainWindow::onPreviewProgress);
+  connect(&previewRenderer_, &core::ffmpeg::Renderer::finalizing, this,
+          [this]() {
+            progressBar_->setRange(0, 0);
+            setStatus(tr("Finalizing preview..."));
+          });
 
   auto updateOutputPath = [this]() {
     if (outputManuallyEdited_) {
@@ -247,16 +283,86 @@ void MainWindow::setupUi() {
   updateOutputPath();
 }
 
+void MainWindow::setupQualitySection(QVBoxLayout *parentLayout) {
+  parentLayout->addSpacing(statusTopSpacing);
+
+  auto *qualityRow = new QHBoxLayout();
+  auto *qualityLabel = new QLabel(tr("Quality"), this);
+  presetCombo_ = new QComboBox(this);
+  for (auto preset : {core::QualityPreset::Draft, core::QualityPreset::Standard,
+                      core::QualityPreset::High, core::QualityPreset::Master}) {
+    presetCombo_->addItem(core::qualityPresetDisplayName(preset),
+                          static_cast<int>(preset));
+  }
+  presetCombo_->setToolTip(tr("Select an output quality preset"));
+
+  qualityRow->addWidget(qualityLabel);
+  qualityRow->addWidget(presetCombo_, 1);
+  parentLayout->addLayout(qualityRow);
+
+  connect(presetCombo_, &QComboBox::currentIndexChanged, this,
+          &MainWindow::onPresetChanged);
+}
+
+void MainWindow::setupPreviewSection(QVBoxLayout *parentLayout) {
+  parentLayout->addSpacing(statusTopSpacing);
+
+  previewWidget_ = new PreviewWidget(this);
+  parentLayout->addWidget(previewWidget_, 1);
+
+  connect(previewWidget_, &PreviewWidget::previewRequested, this,
+          &MainWindow::onPreviewClicked);
+}
+
+void MainWindow::loadQualitySettings() {
+  core::QualityPreset preset = settings_.qualityPreset();
+  int index = presetCombo_->findData(static_cast<int>(preset));
+  if (index >= 0) {
+    presetCombo_->setCurrentIndex(index);
+  }
+}
+
+core::RenderProfile MainWindow::activeProfile() const {
+  auto preset =
+      static_cast<core::QualityPreset>(presetCombo_->currentData().toInt());
+  return core::renderProfileForPreset(preset);
+}
+
+void MainWindow::persistActiveProfile() {
+  auto preset =
+      static_cast<core::QualityPreset>(presetCombo_->currentData().toInt());
+  settings_.setQualityPreset(preset);
+}
+
+void MainWindow::onPresetChanged(int index) {
+  if (index < 0) {
+    return;
+  }
+  persistActiveProfile();
+  markPreviewStale();
+}
+
+void MainWindow::markPreviewStale() {
+  if (previewWidget_ != nullptr) {
+    previewWidget_->setStale(true);
+  }
+  pendingPreviewKey_.clear();
+}
+
 void MainWindow::updateGenerateButton() {
   QString visualPath = visualInput_->path();
   QString audioPath = audioInput_->path();
   QString outputPath = outputInput_->path();
 
-  bool valid = !visualPath.isEmpty() && !audioPath.isEmpty() &&
-               !outputPath.isEmpty() && QFileInfo::exists(visualPath) &&
-               QFileInfo::exists(audioPath);
+  bool validInputs = !visualPath.isEmpty() && !audioPath.isEmpty() &&
+                     QFileInfo::exists(visualPath) &&
+                     QFileInfo::exists(audioPath);
+  bool busy = currentJob_ != JobKind::None;
 
-  generateButton_->setEnabled(valid);
+  generateButton_->setEnabled(validInputs && !outputPath.isEmpty() && !busy);
+  if (previewWidget_ != nullptr) {
+    previewWidget_->setPreviewClickEnabled(validInputs && !busy);
+  }
 }
 
 bool MainWindow::checkDiskSpace(const QString &outputPath) {
@@ -270,6 +376,31 @@ bool MainWindow::checkDiskSpace(const QString &outputPath) {
           QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
       return reply == QMessageBox::Yes;
     }
+  }
+  return true;
+}
+
+bool MainWindow::tryReuseCachedPreviewForExport(const QString &outputPath) {
+  core::PreviewRequest request{visualInput_->path(), audioInput_->path(),
+                               activeProfile()};
+  QString key = previewCache_.computeKey(request);
+  if (key.isEmpty() || !previewCache_.hasArtifact(key)) {
+    return false;
+  }
+  const QString artifact = previewCache_.pathForKey(key);
+  if (QFileInfo(artifact).canonicalFilePath() ==
+      QFileInfo(outputPath).canonicalFilePath()) {
+    return true;
+  }
+  if (QFile::exists(outputPath) && !QFile::remove(outputPath)) {
+    qCWarning(lcMain) << "Failed to remove existing output before reuse:"
+                      << outputPath;
+    return false;
+  }
+  if (!QFile::copy(artifact, outputPath)) {
+    qCWarning(lcMain) << "Failed to copy cached preview to output:" << artifact
+                      << "->" << outputPath;
+    return false;
   }
   return true;
 }
@@ -297,27 +428,107 @@ void MainWindow::onGenerateClicked() {
   settings_.setLastVisualPath(visualPath);
   settings_.setLastAudioPath(audioPath);
   settings_.setOutputDir(QFileInfo(pendingOutputPath_).absolutePath());
+  persistActiveProfile();
 
+  if (tryReuseCachedPreviewForExport(pendingOutputPath_)) {
+    qCInfo(lcMain) << "Reused cached preview for export:" << pendingOutputPath_;
+    setStatus(tr("Done! Reused preview: %1").arg(pendingOutputPath_));
+    statusLabel_->setStyleSheet(QStringLiteral("color: green;"));
+    openFolderButton_->setVisible(true);
+    outputManuallyEdited_ = false;
+    return;
+  }
+
+  currentJob_ = JobKind::Export;
   setUiEnabled(false);
   setStatus(tr("Rendering video..."));
   openFolderButton_->setVisible(false);
   cancelButton_->setVisible(true);
+  progressBar_->setRange(0, 100);
   progressBar_->setValue(0);
   progressBar_->setVisible(true);
 
   qCInfo(lcMain) << "Starting render:" << visualPath << "+" << audioPath << "->"
                  << pendingOutputPath_;
 
-  renderer_.render(visualPath, audioPath, pendingOutputPath_);
+  renderer_.render(visualPath, audioPath, pendingOutputPath_,
+                   activeProfile().toRenderConfig());
+}
+
+void MainWindow::onPreviewClicked() {
+  QString visualPath = visualInput_->path();
+  QString audioPath = audioInput_->path();
+  if (visualPath.isEmpty() || audioPath.isEmpty()) {
+    return;
+  }
+
+  core::PreviewRequest request{visualPath, audioPath, activeProfile()};
+  QString key = previewCache_.computeKey(request);
+  if (key.isEmpty()) {
+    setStatus(tr("Cannot compute preview key — check inputs"), true);
+    return;
+  }
+
+  if (previewCache_.hasArtifact(key)) {
+    pendingPreviewKey_ = key;
+    previewWidget_->loadFile(previewCache_.pathForKey(key));
+    setStatus(tr("Loaded cached preview"));
+    return;
+  }
+
+  if (!previewCache_.ensureCacheDirExists()) {
+    setStatus(tr("Failed to create preview cache directory"), true);
+    return;
+  }
+
+  const qint64 available = previewCache_.availableBytes();
+  if (available >= 0 && available < minDiskSpaceBytes) {
+    QMessageBox::StandardButton reply = QMessageBox::warning(
+        this, tr("Low Disk Space"),
+        tr("Less than 1 GB available in the preview cache location. "
+           "Continue anyway?"),
+        QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+    if (reply != QMessageBox::Yes) {
+      return;
+    }
+  }
+
+  previewCache_.cleanupStale(key);
+  pendingPreviewKey_ = key;
+  pendingPreviewPath_ = previewCache_.pathForKey(key);
+
+  settings_.setLastVisualPath(visualPath);
+  settings_.setLastAudioPath(audioPath);
+  persistActiveProfile();
+
+  currentJob_ = JobKind::Preview;
+  setUiEnabled(false);
+  previewWidget_->setLoading(true);
+  setStatus(tr("Rendering preview..."));
+  cancelButton_->setVisible(true);
+  progressBar_->setRange(0, 100);
+  progressBar_->setValue(0);
+  progressBar_->setVisible(true);
+
+  previewRenderer_.render(visualPath, audioPath, pendingPreviewPath_,
+                          activeProfile().toRenderConfig());
 }
 
 void MainWindow::onCancelClicked() {
-  renderer_.cancel();
+  if (renderer_.isRunning()) {
+    renderer_.cancel();
+  }
+  if (previewRenderer_.isRunning()) {
+    previewRenderer_.cancel();
+  }
   cancelButton_->setEnabled(false);
   setStatus(tr("Cancelling..."));
 }
 
 void MainWindow::onProgressUpdated(int percent) {
+  if (progressBar_->maximum() == 0) {
+    return;
+  }
   progressBar_->setValue(percent);
   setStatus(tr("Rendering video... %1%").arg(percent));
 }
@@ -325,19 +536,23 @@ void MainWindow::onProgressUpdated(int percent) {
 void MainWindow::onRenderFinished() {
   setStatus(tr("Done! Saved to: %1").arg(pendingOutputPath_));
   statusLabel_->setStyleSheet(QStringLiteral("color: green;"));
+  progressBar_->setRange(0, 100);
   progressBar_->setVisible(false);
   cancelButton_->setVisible(false);
   openFolderButton_->setVisible(true);
   outputManuallyEdited_ = false;
+  currentJob_ = JobKind::None;
   setUiEnabled(true);
   qCInfo(lcMain) << "Render finished:" << pendingOutputPath_;
 }
 
 void MainWindow::onRenderError(const QString &error) {
   setStatus(tr("Error: %1").arg(error), true);
+  progressBar_->setRange(0, 100);
   progressBar_->setVisible(false);
   cancelButton_->setVisible(false);
   cancelButton_->setEnabled(true);
+  currentJob_ = JobKind::None;
   setUiEnabled(true);
 
   if (!error.contains(QStringLiteral("cancel"), Qt::CaseInsensitive)) {
@@ -352,6 +567,59 @@ void MainWindow::onRenderError(const QString &error) {
                                : ffmpegOutput);
     msgBox.exec();
   }
+}
+
+void MainWindow::onPreviewProgress(int percent) {
+  if (progressBar_->maximum() == 0) {
+    return;
+  }
+  progressBar_->setValue(percent);
+  setStatus(tr("Rendering preview... %1%").arg(percent));
+}
+
+void MainWindow::onPreviewFinished() {
+  setStatus(tr("Preview ready"));
+  statusLabel_->setStyleSheet(QStringLiteral("color: green;"));
+  progressBar_->setRange(0, 100);
+  progressBar_->setVisible(false);
+  cancelButton_->setVisible(false);
+  currentJob_ = JobKind::None;
+  setUiEnabled(true);
+  previewWidget_->loadFile(pendingPreviewPath_);
+  qCInfo(lcMain) << "Preview finished:" << pendingPreviewPath_;
+}
+
+void MainWindow::onPreviewError(const QString &error) {
+  setStatus(tr("Preview error: %1").arg(error), true);
+  progressBar_->setRange(0, 100);
+  progressBar_->setVisible(false);
+  cancelButton_->setVisible(false);
+  cancelButton_->setEnabled(true);
+  currentJob_ = JobKind::None;
+  setUiEnabled(true);
+
+  if (!pendingPreviewPath_.isEmpty()) {
+    QFile::remove(pendingPreviewPath_);
+  }
+  pendingPreviewKey_.clear();
+
+  if (error.contains(QStringLiteral("cancel"), Qt::CaseInsensitive)) {
+    previewWidget_->setLoading(false);
+    return;
+  }
+
+  previewWidget_->setStatusText(tr("Preview failed"));
+
+  QMessageBox msgBox(this);
+  msgBox.setIcon(QMessageBox::Critical);
+  msgBox.setWindowTitle(tr("Preview Failed"));
+  msgBox.setText(tr("The preview failed: %1").arg(error));
+  QString ffmpegOutput = previewRenderer_.fullStderr();
+  msgBox.setDetailedText(ffmpegOutput.isEmpty()
+                             ? tr("Check the application log for full "
+                                  "FFmpeg output.")
+                             : ffmpegOutput);
+  msgBox.exec();
 }
 
 void MainWindow::onOpenOutputFolder() {
@@ -385,10 +653,12 @@ void MainWindow::setUiEnabled(bool enabled) {
   visualInput_->setEnabled(enabled);
   audioInput_->setEnabled(enabled);
   outputInput_->setEnabled(enabled);
+  presetCombo_->setEnabled(enabled);
   if (enabled) {
     updateGenerateButton();
   } else {
     generateButton_->setEnabled(false);
+    previewWidget_->setPreviewClickEnabled(false);
   }
 }
 
