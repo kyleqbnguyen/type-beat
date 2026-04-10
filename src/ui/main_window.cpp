@@ -77,7 +77,6 @@ MainWindow::MainWindow(QWidget *parent)
 }
 
 MainWindow::~MainWindow() {
-  settings_.setWindowGeometry(saveGeometry());
   if (renderer_.isRunning()) {
     renderer_.cancel();
   }
@@ -329,6 +328,7 @@ void MainWindow::onRenderFinished() {
   progressBar_->setVisible(false);
   cancelButton_->setVisible(false);
   openFolderButton_->setVisible(true);
+  outputManuallyEdited_ = false;
   setUiEnabled(true);
   qCInfo(lcMain) << "Render finished:" << pendingOutputPath_;
 }
@@ -341,16 +341,15 @@ void MainWindow::onRenderError(const QString &error) {
   setUiEnabled(true);
 
   if (!error.contains(QStringLiteral("cancel"), Qt::CaseInsensitive)) {
-    QString details = renderer_.property("fullStderr").toString();
     QMessageBox msgBox(this);
     msgBox.setIcon(QMessageBox::Critical);
     msgBox.setWindowTitle(tr("Render Failed"));
     msgBox.setText(tr("The render failed: %1").arg(error));
-    msgBox.setDetailedText(renderer_.findChild<QObject *>()
-                               ? QString()
-                               : QStringLiteral("Check the application "
-                                                "log for full FFmpeg "
-                                                "output."));
+    QString stderr = renderer_.fullStderr();
+    msgBox.setDetailedText(stderr.isEmpty()
+                               ? tr("Check the application log for full "
+                                    "FFmpeg output.")
+                               : stderr);
     msgBox.exec();
   }
 }

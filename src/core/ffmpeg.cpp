@@ -24,8 +24,7 @@ Renderer::Renderer(QObject *parent) : QObject(parent) {
   connect(&process_, &QProcess::errorOccurred, this, &Renderer::onProcessError);
   connect(&process_, &QProcess::readyReadStandardError, this,
           &Renderer::onReadyReadStderr);
-  process_.setProcessChannelMode(QProcess::MergedChannels);
-  process_.setReadChannel(QProcess::StandardOutput);
+  process_.setProcessChannelMode(QProcess::SeparateChannels);
 }
 
 Renderer::~Renderer() {
@@ -36,6 +35,8 @@ Renderer::~Renderer() {
     process_.waitForFinished(3000);
   }
 }
+
+QString Renderer::fullStderr() const { return fullStderr_; }
 
 void Renderer::render(const QString &visualPath, const QString &audioPath,
                       const QString &outputPath) {
@@ -78,7 +79,6 @@ void Renderer::render(const QString &visualPath, const QString &audioPath,
 
   qCInfo(lcRenderer) << "Starting FFmpeg:" << ffmpeg << args.join(' ');
 
-  process_.setProcessChannelMode(QProcess::SeparateChannels);
   process_.start(ffmpeg, args);
 }
 
@@ -197,7 +197,7 @@ void Renderer::onProcessError(QProcess::ProcessError error) {
 
 double Renderer::parseDuration(const QString &output) {
   static const QRegularExpression re(
-      QStringLiteral(R"(Duration:\s*(\d{2}):(\d{2}):(\d{2})\.(\d{2}))"));
+      QStringLiteral(R"(Duration:\s*(\d{1,2}):(\d{1,2}):(\d{1,2})\.(\d{1,2}))"));
   double maxDuration = -1.0;
   auto it = re.globalMatch(output);
   while (it.hasNext()) {
@@ -216,7 +216,7 @@ double Renderer::parseDuration(const QString &output) {
 
 double Renderer::parseTime(const QString &line) {
   static const QRegularExpression re(
-      QStringLiteral(R"(time=(\d{2}):(\d{2}):(\d{2})\.(\d{2}))"));
+      QStringLiteral(R"(time=(\d{1,2}):(\d{1,2}):(\d{1,2})\.(\d{1,2}))"));
   double lastTime = -1.0;
   auto it = re.globalMatch(line);
   while (it.hasNext()) {
