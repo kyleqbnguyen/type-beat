@@ -17,6 +17,7 @@ public:
               const QString &outputPath);
   void cancel();
   [[nodiscard]] bool isRunning() const;
+  [[nodiscard]] QString fullStderr() const;
 
 signals:
   void finished();
