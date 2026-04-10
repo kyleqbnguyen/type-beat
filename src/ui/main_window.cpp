@@ -345,11 +345,11 @@ void MainWindow::onRenderError(const QString &error) {
     msgBox.setIcon(QMessageBox::Critical);
     msgBox.setWindowTitle(tr("Render Failed"));
     msgBox.setText(tr("The render failed: %1").arg(error));
-    QString stderr = renderer_.fullStderr();
-    msgBox.setDetailedText(stderr.isEmpty()
+    QString ffmpegOutput = renderer_.fullStderr();
+    msgBox.setDetailedText(ffmpegOutput.isEmpty()
                                ? tr("Check the application log for full "
                                     "FFmpeg output.")
-                               : stderr);
+                               : ffmpegOutput);
     msgBox.exec();
   }
 }
