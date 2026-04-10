@@ -28,27 +28,39 @@ configure_file(
   ${CMAKE_BINARY_DIR}/generated/version.h
   @ONLY)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets Multimedia MultimediaWidgets)
 
-add_library(core OBJECT src/core/file_utils.cpp src/core/ffmpeg.cpp)
+add_library(
+  core OBJECT
+  src/core/file_utils.cpp
+  src/core/ffmpeg.cpp
+  src/core/render_profile.cpp
+  src/core/preview_cache.cpp)
 target_include_directories(core PUBLIC ${CMAKE_SOURCE_DIR}/src
                                        ${CMAKE_BINARY_DIR}/generated)
 target_link_libraries(core PUBLIC Qt6::Core)
 
 add_library(settings OBJECT src/settings/app_settings.cpp)
 target_include_directories(settings PUBLIC ${CMAKE_SOURCE_DIR}/src)
-target_link_libraries(settings PUBLIC Qt6::Core)
+target_link_libraries(settings PUBLIC Qt6::Core core)
 
-add_library(ui OBJECT src/ui/file_input.cpp src/ui/main_window.cpp)
+add_library(
+  ui OBJECT
+  src/ui/file_input.cpp
+  src/ui/main_window.cpp
+  src/ui/preview_widget.cpp)
 target_include_directories(ui PUBLIC ${CMAKE_SOURCE_DIR}/src
                                      ${CMAKE_BINARY_DIR}/generated)
-target_link_libraries(ui PUBLIC Qt6::Widgets Qt6::Core core settings)
+target_link_libraries(
+  ui PUBLIC Qt6::Widgets Qt6::Core Qt6::Multimedia Qt6::MultimediaWidgets core
+            settings)
 
 qt_add_resources(APP_RESOURCES resources.qrc)
 
 add_executable(${PROJECT_NAME} src/main.cpp ${APP_RESOURCES})
-target_link_libraries(${PROJECT_NAME} PRIVATE ui core settings Qt6::Widgets
-                                              Qt6::Core)
+target_link_libraries(
+  ${PROJECT_NAME} PRIVATE ui core settings Qt6::Widgets Qt6::Core
+                          Qt6::Multimedia Qt6::MultimediaWidgets)
 
 if(WIN32)
   target_sources(${PROJECT_NAME}
@@ -173,7 +185,9 @@ if(BUILD_TESTING)
   add_executable(
     typebeat_tests
     tests/test_file_utils.cpp
-    tests/test_ffmpeg_args.cpp)
+    tests/test_ffmpeg_args.cpp
+    tests/test_render_profile.cpp
+    tests/test_preview_cache.cpp)
 
   target_include_directories(typebeat_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
   target_link_libraries(typebeat_tests PRIVATE core settings Qt6::Core
