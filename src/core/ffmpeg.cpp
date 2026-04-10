@@ -39,6 +39,7 @@ void Renderer::render(const QString &visualPath, const QString &audioPath,
 
   errorEmitted_ = false;
   cancelled_ = false;
+  finalizingEmitted_ = false;
   durationSeconds_ = 0.0;
   fullStderr_.clear();
   config_ = config;
@@ -60,6 +61,11 @@ void Renderer::render(const QString &visualPath, const QString &audioPath,
     emit errorOccurred(
         QStringLiteral("Audio file not found: %1").arg(audioPath));
     return;
+  }
+
+  double probed = probeDurationSeconds(audioPath);
+  if (probed > 0.0) {
+    durationSeconds_ = probed;
   }
 
   QStringList args;
@@ -108,8 +114,12 @@ void Renderer::onReadyReadStderr() {
     double currentTime = parseTime(output);
     if (currentTime >= 0.0) {
       int percent = static_cast<int>((currentTime / durationSeconds_) * 100.0);
-      if (percent > 100) {
-        percent = 100;
+      if (percent >= 100) {
+        percent = 99;
+        if (!finalizingEmitted_) {
+          finalizingEmitted_ = true;
+          emit finalizing();
+        }
       }
       emit progressUpdated(percent);
     }
@@ -248,7 +258,7 @@ QStringList Renderer::buildImageArgs(const QString &visualPath,
                      "pad=%1:%2:(ow-iw)/2:(oh-ih)/2")
           .arg(config_.width)
           .arg(config_.height);
-  return {
+  QStringList args{
       QStringLiteral("-y"),
       QStringLiteral("-loop"),
       QStringLiteral("1"),
@@ -277,8 +287,12 @@ QStringList Renderer::buildImageArgs(const QString &visualPath,
       QStringLiteral("-shortest"),
       QStringLiteral("-vf"),
       scaleFilter,
-      outputPath,
   };
+  if (durationSeconds_ > 0.0) {
+    args << QStringLiteral("-t") << QString::number(durationSeconds_, 'f', 3);
+  }
+  args << outputPath;
+  return args;
 }
 
 QStringList Renderer::buildVideoArgs(const QString &visualPath,
@@ -289,7 +303,7 @@ QStringList Renderer::buildVideoArgs(const QString &visualPath,
                      "pad=%1:%2:(ow-iw)/2:(oh-ih)/2")
           .arg(config_.width)
           .arg(config_.height);
-  return {
+  QStringList args{
       QStringLiteral("-y"),
       QStringLiteral("-stream_loop"),
       QStringLiteral("-1"),
@@ -316,8 +330,33 @@ QStringList Renderer::buildVideoArgs(const QString &visualPath,
       QStringLiteral("-shortest"),
       QStringLiteral("-vf"),
       scaleFilter,
-      outputPath,
   };
+  if (durationSeconds_ > 0.0) {
+    args << QStringLiteral("-t") << QString::number(durationSeconds_, 'f', 3);
+  }
+  args << outputPath;
+  return args;
+}
+
+double Renderer::probeDurationSeconds(const QString &path) {
+  QString ffmpeg = ffmpegPath();
+  if (!QFile::exists(ffmpeg) || !QFile::exists(path)) {
+    return -1.0;
+  }
+  QProcess probe;
+  probe.setProcessChannelMode(QProcess::SeparateChannels);
+  probe.start(ffmpeg,
+              {QStringLiteral("-hide_banner"), QStringLiteral("-i"), path});
+  if (!probe.waitForStarted(3000)) {
+    return -1.0;
+  }
+  if (!probe.waitForFinished(5000)) {
+    probe.kill();
+    probe.waitForFinished(1000);
+    return -1.0;
+  }
+  QString stderrOut = QString::fromUtf8(probe.readAllStandardError());
+  return parseDuration(stderrOut);
 }
 
 } // namespace core::ffmpeg
