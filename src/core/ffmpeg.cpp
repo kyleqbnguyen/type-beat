@@ -11,13 +11,6 @@ Q_LOGGING_CATEGORY(lcRenderer, "typebeat.renderer")
 
 namespace core::ffmpeg {
 
-namespace {
-
-const QString scaleFilter =
-    QStringLiteral("scale=1920:1080:force_original_aspect_ratio=decrease,"
-                   "pad=1920:1080:(ow-iw)/2:(oh-ih)/2");
-
-} // namespace
 
 Renderer::Renderer(QObject *parent) : QObject(parent) {
   connect(&process_, &QProcess::finished, this, &Renderer::onProcessFinished);
@@ -39,7 +32,7 @@ Renderer::~Renderer() {
 QString Renderer::fullStderr() const { return fullStderr_; }
 
 void Renderer::render(const QString &visualPath, const QString &audioPath,
-                      const QString &outputPath) {
+                      const QString &outputPath, const RenderConfig &config) {
   if (process_.state() != QProcess::NotRunning) {
     emit errorOccurred(QStringLiteral("Render already in progress"));
     return;
@@ -49,6 +42,7 @@ void Renderer::render(const QString &visualPath, const QString &audioPath,
   cancelled_ = false;
   durationSeconds_ = 0.0;
   fullStderr_.clear();
+  config_ = config;
 
   QString ffmpeg = ffmpegPath();
 
@@ -250,6 +244,11 @@ bool Renderer::isImageFile(const QString &path) {
 QStringList Renderer::buildImageArgs(const QString &visualPath,
                                      const QString &audioPath,
                                      const QString &outputPath) const {
+  QString scaleFilter =
+      QStringLiteral("scale=%1:%2:force_original_aspect_ratio=decrease,"
+                     "pad=%1:%2:(ow-iw)/2:(oh-ih)/2")
+          .arg(config_.width)
+          .arg(config_.height);
   return {
       QStringLiteral("-y"),
       QStringLiteral("-loop"),
@@ -263,17 +262,17 @@ QStringList Renderer::buildImageArgs(const QString &visualPath,
       QStringLiteral("-map"),
       QStringLiteral("1:a:0"),
       QStringLiteral("-c:v"),
-      QStringLiteral("libx264"),
+      config_.videoCodec,
       QStringLiteral("-tune"),
       QStringLiteral("stillimage"),
       QStringLiteral("-preset"),
-      QStringLiteral("ultrafast"),
+      config_.preset,
       QStringLiteral("-crf"),
-      QStringLiteral("18"),
+      QString::number(config_.imageCrf),
       QStringLiteral("-c:a"),
-      QStringLiteral("aac"),
+      config_.audioCodec,
       QStringLiteral("-b:a"),
-      QStringLiteral("192k"),
+      config_.audioBitrate,
       QStringLiteral("-pix_fmt"),
       QStringLiteral("yuv420p"),
       QStringLiteral("-shortest"),
@@ -286,6 +285,11 @@ QStringList Renderer::buildImageArgs(const QString &visualPath,
 QStringList Renderer::buildVideoArgs(const QString &visualPath,
                                      const QString &audioPath,
                                      const QString &outputPath) const {
+  QString scaleFilter =
+      QStringLiteral("scale=%1:%2:force_original_aspect_ratio=decrease,"
+                     "pad=%1:%2:(ow-iw)/2:(oh-ih)/2")
+          .arg(config_.width)
+          .arg(config_.height);
   return {
       QStringLiteral("-y"),
       QStringLiteral("-stream_loop"),
@@ -299,15 +303,15 @@ QStringList Renderer::buildVideoArgs(const QString &visualPath,
       QStringLiteral("-map"),
       QStringLiteral("1:a:0"),
       QStringLiteral("-c:v"),
-      QStringLiteral("libx264"),
+      config_.videoCodec,
       QStringLiteral("-preset"),
-      QStringLiteral("ultrafast"),
+      config_.preset,
       QStringLiteral("-crf"),
-      QStringLiteral("23"),
+      QString::number(config_.videoCrf),
       QStringLiteral("-c:a"),
-      QStringLiteral("aac"),
+      config_.audioCodec,
       QStringLiteral("-b:a"),
-      QStringLiteral("192k"),
+      config_.audioBitrate,
       QStringLiteral("-pix_fmt"),
       QStringLiteral("yuv420p"),
       QStringLiteral("-shortest"),
