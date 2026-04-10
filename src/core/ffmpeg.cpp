@@ -11,7 +11,6 @@ Q_LOGGING_CATEGORY(lcRenderer, "typebeat.renderer")
 
 namespace core::ffmpeg {
 
-
 Renderer::Renderer(QObject *parent) : QObject(parent) {
   connect(&process_, &QProcess::finished, this, &Renderer::onProcessFinished);
   connect(&process_, &QProcess::errorOccurred, this, &Renderer::onProcessError);
@@ -190,8 +189,8 @@ void Renderer::onProcessError(QProcess::ProcessError error) {
 }
 
 double Renderer::parseDuration(const QString &output) {
-  static const QRegularExpression re(
-      QStringLiteral(R"(Duration:\s*(\d{1,2}):(\d{1,2}):(\d{1,2})\.(\d{1,2}))"));
+  static const QRegularExpression re(QStringLiteral(
+      R"(Duration:\s*(\d{1,2}):(\d{1,2}):(\d{1,2})\.(\d{1,2}))"));
   double maxDuration = -1.0;
   auto it = re.globalMatch(output);
   while (it.hasNext()) {
