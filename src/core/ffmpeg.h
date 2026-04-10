@@ -6,6 +6,17 @@
 
 namespace core::ffmpeg {
 
+struct RenderConfig {
+  int width = 1920;
+  int height = 1080;
+  QString videoCodec = QStringLiteral("libx264");
+  QString audioCodec = QStringLiteral("aac");
+  QString audioBitrate = QStringLiteral("192k");
+  QString preset = QStringLiteral("ultrafast");
+  int imageCrf = 18;
+  int videoCrf = 23;
+};
+
 class Renderer : public QObject {
   Q_OBJECT
 
@@ -14,7 +25,8 @@ public:
   ~Renderer() override;
 
   void render(const QString &visualPath, const QString &audioPath,
-              const QString &outputPath);
+              const QString &outputPath,
+              const RenderConfig &config = RenderConfig{});
   void cancel();
   [[nodiscard]] bool isRunning() const;
   [[nodiscard]] QString fullStderr() const;
@@ -42,6 +54,7 @@ private:
   static double parseTime(const QString &line);
 
   QProcess process_;
+  RenderConfig config_;
   bool errorEmitted_ = false;
   bool cancelled_ = false;
   double durationSeconds_ = 0.0;
