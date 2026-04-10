@@ -35,6 +35,7 @@ signals:
   void finished();
   void errorOccurred(const QString &errorMessage);
   void progressUpdated(int percent);
+  void finalizing();
 
 private slots:
   void onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus);
@@ -52,11 +53,13 @@ private:
                              const QString &outputPath) const;
   static double parseDuration(const QString &output);
   static double parseTime(const QString &line);
+  static double probeDurationSeconds(const QString &path);
 
   QProcess process_;
   RenderConfig config_;
   bool errorEmitted_ = false;
   bool cancelled_ = false;
+  bool finalizingEmitted_ = false;
   double durationSeconds_ = 0.0;
   QString fullStderr_;
 };
