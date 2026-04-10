@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/render_profile.h"
+
 #include <QString>
 
 namespace settings {
@@ -19,6 +21,11 @@ public:
 
   QByteArray windowGeometry() const;
   void setWindowGeometry(const QByteArray &geometry);
+
+  core::QualityPreset qualityPreset() const;
+  void setQualityPreset(core::QualityPreset preset);
+
+  core::RenderProfile activeProfile() const;
 
   void resetToDefaults();
 

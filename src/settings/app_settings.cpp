@@ -12,6 +12,7 @@ const QString kOutputDir = QStringLiteral("output_dir");
 const QString kLastVisualPath = QStringLiteral("last_visual_path");
 const QString kLastAudioPath = QStringLiteral("last_audio_path");
 const QString kWindowGeometry = QStringLiteral("window_geometry");
+const QString kQualityPreset = QStringLiteral("quality_preset");
 
 QSettings &getSettings() {
   static QSettings settings(QStringLiteral("TypeBeat"),
@@ -64,6 +65,21 @@ QByteArray AppSettings::windowGeometry() const {
 
 void AppSettings::setWindowGeometry(const QByteArray &geometry) {
   getSettings().setValue(kWindowGeometry, geometry);
+}
+
+core::QualityPreset AppSettings::qualityPreset() const {
+  return core::qualityPresetFromString(
+      getSettings()
+          .value(kQualityPreset, QStringLiteral("standard"))
+          .toString());
+}
+
+void AppSettings::setQualityPreset(core::QualityPreset preset) {
+  getSettings().setValue(kQualityPreset, core::qualityPresetToString(preset));
+}
+
+core::RenderProfile AppSettings::activeProfile() const {
+  return core::renderProfileForPreset(qualityPreset());
 }
 
 void AppSettings::resetToDefaults() {
