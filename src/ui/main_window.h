@@ -85,6 +85,8 @@ private:
 
   bool outputManuallyEdited_;
   bool settingOutputProgrammatically_;
+  bool previewClickDeferred_ = false;
+  bool hasInputError_ = false;
 };
 
 } // namespace ui

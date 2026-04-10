@@ -209,6 +209,8 @@ PreviewWidget::PreviewWidget(QWidget *parent)
 PreviewWidget::~PreviewWidget() = default;
 
 void PreviewWidget::loadFile(const QString &path) {
+  dotTimer_->stop();
+  invalidInputs_ = false;
   stop();
   if (path.isEmpty()) {
     clear();
@@ -222,6 +224,8 @@ void PreviewWidget::loadFile(const QString &path) {
 }
 
 void PreviewWidget::clear() {
+  dotTimer_->stop();
+  invalidInputs_ = false;
   showingThumbnail_ = false;
   stop();
   player_->setSource(QUrl());
@@ -290,6 +294,7 @@ void PreviewWidget::setLoading(bool loading) {
 }
 
 void PreviewWidget::setStatusText(const QString &text) {
+  dotTimer_->stop();
   stop();
   stack_->setCurrentIndex(0);
   placeholderLabel_->setText(text);
@@ -374,6 +379,36 @@ void PreviewWidget::setPreviewClickEnabled(bool enabled) {
   previewClickEnabled_ = enabled;
   placeholder_->setCursor(enabled ? Qt::PointingHandCursor
                                   : Qt::ArrowCursor);
+}
+
+void PreviewWidget::setInputsValid(bool valid) {
+  if (dotTimer_->isActive()) {
+    return;
+  }
+
+  if (!hasMedia_) {
+    placeholderLabel_->setText(
+        valid ? tr("No preview loaded\nClick here to load preview")
+              : tr("Select valid input files to load a preview"));
+    return;
+  }
+
+  if (!valid && !invalidInputs_) {
+    invalidInputs_ = true;
+    stack_->setCurrentIndex(0);
+    placeholderLabel_->setText(tr("Select valid input files to load a preview"));
+  } else if (valid && invalidInputs_) {
+    invalidInputs_ = false;
+    if (stale_) {
+      stack_->setCurrentIndex(0);
+      placeholderLabel_->setText(
+          tr("Settings changed — generate a new preview\nClick here to "
+             "reload"));
+    } else {
+      stack_->setCurrentIndex(1);
+      setControlsEnabled(true);
+    }
+  }
 }
 
 bool PreviewWidget::eventFilter(QObject *obj, QEvent *event) {
