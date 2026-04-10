@@ -9,3 +9,6 @@ packaging/macos/*.icns
 
 .DS_Store
 Thumbs.db
+
+CLAUDE.md
+AGENTS.md
