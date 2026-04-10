@@ -19,6 +19,7 @@ public:
 
   [[nodiscard]] QString path() const;
   void setPath(const QString &path);
+  void setError(bool error);
 
 signals:
   void pathChanged(const QString &path);

@@ -35,6 +35,7 @@ public:
   void setLoading(bool loading);
   void setStatusText(const QString &text);
   void setPreviewClickEnabled(bool enabled);
+  void setInputsValid(bool valid);
 
 signals:
   void previewRequested();
@@ -75,6 +76,7 @@ private:
 
   bool stale_ = false;
   bool hasMedia_ = false;
+  bool invalidInputs_ = false;
   bool sliderPressed_ = false;
   bool showingThumbnail_ = false;
   bool previewClickEnabled_ = false;

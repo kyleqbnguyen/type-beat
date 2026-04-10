@@ -11,6 +11,7 @@
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QStorageInfo>
+#include <QTimer>
 #include <QUrl>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -344,9 +345,26 @@ void MainWindow::onPresetChanged(int index) {
 
 void MainWindow::markPreviewStale() {
   if (previewWidget_ != nullptr) {
-    previewWidget_->setStale(true);
+    previewWidget_->setPreviewClickEnabled(false);
   }
-  pendingPreviewKey_.clear();
+
+  QString visualPath = visualInput_->path();
+  QString audioPath = audioInput_->path();
+  bool inputsValid = !visualPath.isEmpty() && !audioPath.isEmpty() &&
+                     QFileInfo::exists(visualPath) && QFileInfo::exists(audioPath);
+
+  if (inputsValid) {
+    if (previewWidget_ != nullptr) {
+      previewWidget_->setStale(true);
+    }
+    pendingPreviewKey_.clear();
+  }
+
+  previewClickDeferred_ = true;
+  QTimer::singleShot(0, this, [this]() {
+    previewClickDeferred_ = false;
+    updateGenerateButton();
+  });
 }
 
 void MainWindow::updateGenerateButton() {
@@ -354,14 +372,39 @@ void MainWindow::updateGenerateButton() {
   QString audioPath = audioInput_->path();
   QString outputPath = outputInput_->path();
 
+  bool visualMissing = !visualPath.isEmpty() && !QFileInfo::exists(visualPath);
+  bool audioMissing = !audioPath.isEmpty() && !QFileInfo::exists(audioPath);
   bool validInputs = !visualPath.isEmpty() && !audioPath.isEmpty() &&
-                     QFileInfo::exists(visualPath) &&
-                     QFileInfo::exists(audioPath);
+                     !visualMissing && !audioMissing;
   bool busy = currentJob_ != JobKind::None;
 
   generateButton_->setEnabled(validInputs && !outputPath.isEmpty() && !busy);
   if (previewWidget_ != nullptr) {
-    previewWidget_->setPreviewClickEnabled(validInputs && !busy);
+    previewWidget_->setPreviewClickEnabled(
+        !previewClickDeferred_ && validInputs && !busy);
+  }
+
+  if (!busy) {
+    visualInput_->setError(visualMissing);
+    audioInput_->setError(audioMissing);
+
+    if (visualMissing || audioMissing) {
+      hasInputError_ = true;
+      if (visualMissing && audioMissing) {
+        setStatus(tr("File not found — check the visual and audio paths"), true);
+      } else if (visualMissing) {
+        setStatus(tr("File not found — check the visual path"), true);
+      } else {
+        setStatus(tr("File not found — check the audio path"), true);
+      }
+    } else if (hasInputError_) {
+      hasInputError_ = false;
+      setStatus(tr("Ready"));
+    }
+
+    if (previewWidget_ != nullptr) {
+      previewWidget_->setInputsValid(validInputs);
+    }
   }
 }
 

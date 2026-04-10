@@ -30,6 +30,11 @@ QString FileInput::path() const { return lineEdit_->text(); }
 
 void FileInput::setPath(const QString &path) { lineEdit_->setText(path); }
 
+void FileInput::setError(bool error) {
+  lineEdit_->setStyleSheet(
+      error ? QStringLiteral("border: 1.5px solid #cc3333;") : QString());
+}
+
 void FileInput::onBrowseClicked() {
   QString startDir;
   QString currentPath = lineEdit_->text();
