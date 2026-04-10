@@ -87,9 +87,8 @@ QPixmap makeOverlayPixmap(bool play) {
 PreviewWidget::PreviewWidget(QWidget *parent)
     : QWidget(parent), player_(new QMediaPlayer(this)),
       audio_(new QAudioOutput(this)), stack_(new QStackedWidget(this)),
-      placeholderLabel_(nullptr),
-      video_(new QVideoWidget(this)), overlayLabel_(nullptr),
-      overlayEffect_(nullptr), overlayAnim_(nullptr),
+      placeholderLabel_(nullptr), video_(new QVideoWidget(this)),
+      overlayLabel_(nullptr), overlayEffect_(nullptr), overlayAnim_(nullptr),
       overlayFadeTimer_(nullptr), dotTimer_(nullptr),
       playPauseButton_(new QPushButton(this)),
       seekSlider_(new QSlider(Qt::Horizontal, this)),
@@ -112,9 +111,8 @@ PreviewWidget::PreviewWidget(QWidget *parent)
   placeholderLayout->setAlignment(Qt::AlignCenter);
   placeholderLayout->setSpacing(16);
 
-  placeholderLabel_ =
-      new QLabel(tr("No preview loaded\nClick here to load preview"),
-                 placeholder_);
+  placeholderLabel_ = new QLabel(
+      tr("No preview loaded\nClick here to load preview"), placeholder_);
   placeholderLabel_->setAlignment(Qt::AlignCenter);
   placeholderLabel_->setStyleSheet(
       QStringLiteral("color: #888888; font-size: 20px;"));
@@ -122,28 +120,27 @@ PreviewWidget::PreviewWidget(QWidget *parent)
   placeholderLayout->addWidget(placeholderLabel_);
 
   stack_->addWidget(placeholder_); // index 0: placeholder
-  stack_->addWidget(video_);      // index 1: video
+  stack_->addWidget(video_);       // index 1: video
   stack_->setMinimumSize(320, 180);
 
   seekSlider_->setRange(0, 0);
   seekSlider_->setEnabled(false);
-  seekSlider_->setStyleSheet(
-      QStringLiteral("QSlider::groove:horizontal {"
-                     " height: 18px;"
-                     " background: #444444;"
-                     " border-radius: 9px;"
-                     "}"
-                     "QSlider::sub-page:horizontal {"
-                     " background: #888888;"
-                     " border-radius: 9px;"
-                     "}"
-                     "QSlider::handle:horizontal {"
-                     " width: 22px;"
-                     " height: 22px;"
-                     " margin: -2px 0;"
-                     " border-radius: 11px;"
-                     " background: #cccccc;"
-                     "}"));
+  seekSlider_->setStyleSheet(QStringLiteral("QSlider::groove:horizontal {"
+                                            " height: 18px;"
+                                            " background: #444444;"
+                                            " border-radius: 9px;"
+                                            "}"
+                                            "QSlider::sub-page:horizontal {"
+                                            " background: #888888;"
+                                            " border-radius: 9px;"
+                                            "}"
+                                            "QSlider::handle:horizontal {"
+                                            " width: 22px;"
+                                            " height: 22px;"
+                                            " margin: -2px 0;"
+                                            " border-radius: 11px;"
+                                            " background: #cccccc;"
+                                            "}"));
   seekSlider_->installEventFilter(this);
 
   playPauseButton_->setIcon(playIcon_);
@@ -350,7 +347,7 @@ void PreviewWidget::onPlaybackStateChanged(QMediaPlayer::PlaybackState state) {
     return;
   }
   playPauseButton_->setIcon(state == QMediaPlayer::PlayingState ? pauseIcon_
-                                                                 : playIcon_);
+                                                                : playIcon_);
 }
 
 void PreviewWidget::updateTimeLabel(qint64 position, qint64 duration) {
@@ -360,8 +357,8 @@ void PreviewWidget::updateTimeLabel(qint64 position, qint64 duration) {
 
 void PreviewWidget::onDotTimerTick() {
   dotCount_ = (dotCount_ % 3) + 1;
-  placeholderLabel_->setText(
-      tr("Generating preview") + QString(dotCount_, QLatin1Char('.')));
+  placeholderLabel_->setText(tr("Generating preview") +
+                             QString(dotCount_, QLatin1Char('.')));
 }
 
 void PreviewWidget::showClickOverlay(bool nowPausing) {
@@ -377,8 +374,7 @@ void PreviewWidget::showClickOverlay(bool nowPausing) {
 
 void PreviewWidget::setPreviewClickEnabled(bool enabled) {
   previewClickEnabled_ = enabled;
-  placeholder_->setCursor(enabled ? Qt::PointingHandCursor
-                                  : Qt::ArrowCursor);
+  placeholder_->setCursor(enabled ? Qt::PointingHandCursor : Qt::ArrowCursor);
 }
 
 void PreviewWidget::setInputsValid(bool valid) {
@@ -396,7 +392,8 @@ void PreviewWidget::setInputsValid(bool valid) {
   if (!valid && !invalidInputs_) {
     invalidInputs_ = true;
     stack_->setCurrentIndex(0);
-    placeholderLabel_->setText(tr("Select valid input files to load a preview"));
+    placeholderLabel_->setText(
+        tr("Select valid input files to load a preview"));
   } else if (valid && invalidInputs_) {
     invalidInputs_ = false;
     if (stale_) {

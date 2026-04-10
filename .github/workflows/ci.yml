@@ -28,6 +28,7 @@ jobs:
         uses: jurplel/install-qt-action@v3
         with:
           version: ${{ env.QT_VERSION }}
+          modules: qtmultimedia
           cache: true
 
       - name: Run clang-tidy
@@ -60,6 +61,7 @@ jobs:
         uses: jurplel/install-qt-action@v3
         with:
           version: ${{ env.QT_VERSION }}
+          modules: qtmultimedia
           cache: true
 
       - name: Configure CMake
@@ -109,6 +111,7 @@ jobs:
         uses: jurplel/install-qt-action@v3
         with:
           version: ${{ env.QT_VERSION }}
+          modules: qtmultimedia
           cache: true
 
       - name: Setup MSVC (Windows)

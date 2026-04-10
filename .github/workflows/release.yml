@@ -30,6 +30,7 @@ jobs:
           host: windows
           target: desktop
           arch: win64_msvc2019_64
+          modules: qtmultimedia
           cache: true
 
       - name: Setup MSVC
@@ -109,6 +110,7 @@ jobs:
           host: mac
           target: desktop
           arch: clang_64
+          modules: qtmultimedia
           cache: true
 
       - name: Download FFmpeg
@@ -199,6 +201,7 @@ jobs:
           host: linux
           target: desktop
           arch: gcc_64
+          modules: qtmultimedia
           cache: true
 
       - name: Download FFmpeg
