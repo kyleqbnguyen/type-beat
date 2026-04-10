@@ -351,7 +351,8 @@ void MainWindow::markPreviewStale() {
   QString visualPath = visualInput_->path();
   QString audioPath = audioInput_->path();
   bool inputsValid = !visualPath.isEmpty() && !audioPath.isEmpty() &&
-                     QFileInfo::exists(visualPath) && QFileInfo::exists(audioPath);
+                     QFileInfo::exists(visualPath) &&
+                     QFileInfo::exists(audioPath);
 
   if (inputsValid) {
     if (previewWidget_ != nullptr) {
@@ -380,8 +381,8 @@ void MainWindow::updateGenerateButton() {
 
   generateButton_->setEnabled(validInputs && !outputPath.isEmpty() && !busy);
   if (previewWidget_ != nullptr) {
-    previewWidget_->setPreviewClickEnabled(
-        !previewClickDeferred_ && validInputs && !busy);
+    previewWidget_->setPreviewClickEnabled(!previewClickDeferred_ &&
+                                           validInputs && !busy);
   }
 
   if (!busy) {
@@ -391,7 +392,8 @@ void MainWindow::updateGenerateButton() {
     if (visualMissing || audioMissing) {
       hasInputError_ = true;
       if (visualMissing && audioMissing) {
-        setStatus(tr("File not found — check the visual and audio paths"), true);
+        setStatus(tr("File not found — check the visual and audio paths"),
+                  true);
       } else if (visualMissing) {
         setStatus(tr("File not found — check the visual path"), true);
       } else {
